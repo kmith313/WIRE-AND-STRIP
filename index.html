@@ -133,6 +133,7 @@
       <div class="tab" data-tab="master">Item Master</div>
       <div class="tab" data-tab="receive">Receive Entry</div>
       <div class="tab" data-tab="issue">Issue Entry</div>
+      <div class="tab app-hidden" id="combinedTab" data-tab="combined">All Workers Combined</div>
     </div>
 
     <!-- DASHBOARD -->
@@ -232,6 +233,36 @@
       </div>
     </div>
 
+    <!-- ALL WORKERS COMBINED (only shown when SHARED_FOLDER_ID is configured) -->
+    <div class="panel" id="panel-combined">
+      <div class="card">
+        <h2>Select Period</h2>
+        <div class="row">
+          <div class="field"><label>Month</label><select id="cbMonth"></select></div>
+          <div class="field"><label>Year</label><input type="number" id="cbYear" min="2020" max="2100" style="width:100px"></div>
+          <button class="btn" id="cbRefreshBtn">🔄 Refresh</button>
+          <div class="field" style="min-width:240px"><label>View</label><select id="cbWorkerSelect"><option value="__all__">All Workers Combined</option></select></div>
+          <div class="period-line">Showing: <b id="cbPeriodLabel">—</b></div>
+        </div>
+        <div class="note" id="cbWorkerList"></div>
+      </div>
+      <div class="card">
+        <h2>Combined Stock — All Workers Together</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Category</th><th>Item Name (Size)</th><th>Unit</th>
+              <th style="text-align:right">Opening</th><th style="text-align:right">Received</th>
+              <th style="text-align:right">Issued</th><th style="text-align:right">Closing</th></tr></thead>
+            <tbody id="cbTableBody"></tbody>
+            <tfoot><tr><td colspan="3">TOTAL (All Sizes, All Workers)</td>
+              <td class="num" id="cbTotOpen">0.00</td><td class="num" id="cbTotRecv">0.00</td>
+              <td class="num" id="cbTotIssue">0.00</td><td class="num" id="cbTotClose">0.00</td></tr></tfoot>
+          </table>
+        </div>
+        <div class="note">Ye view us shared folder ke andar sabhi workers ki files ko padhkar total nikalta hai. Sirf wahi log ye tab dekh paayenge jinke paas shared folder ka access hai.</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -242,7 +273,9 @@
 const CLIENT_ID = "933740281356-2gf56thakcjdprj45n93nsc3dl2353bk.apps.googleusercontent.com";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const APP_FOLDER_NAME = "Wire Strip Dashboard";
-const DATA_FILE_NAME = "wire_strip_data.json";
+// Paste a shared Google Drive folder ID here to enable the "All Workers Combined" view.
+// Leave empty to keep every worker's data fully separate (personal folders, no combined view).
+const SHARED_FOLDER_ID = "1MplJLID09SaPw46UPwqntpWr4QILUWu4";
 
 /* ========================================================= */
 
@@ -282,6 +315,8 @@ let issues = [];
 let accessToken = null;
 let fileId = null;
 let folderId = null;
+let userEmail = null;
+let userName = null;
 let saveTimer = null;
 
 const $ = id => document.getElementById(id);
@@ -323,7 +358,9 @@ function handleCredentialResponse(response){
   // Decode basic profile info from the ID token for display purposes
   try{
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    $('userName').textContent = payload.name || payload.email;
+    userEmail = payload.email;
+    userName = payload.name || payload.email;
+    $('userName').textContent = userName;
     $('userPic').src = payload.picture || '';
   }catch(e){}
   // Now request a Drive access token (separate from the identity token)
@@ -362,27 +399,43 @@ async function driveFetch(url, opts={}){
   return r;
 }
 
+function myDataFileName(){
+  // Each worker gets their own uniquely-named file, so many people can safely
+  // share the same folder without overwriting each other's data.
+  const safeEmail = (userEmail || 'unknown').replace(/[^a-zA-Z0-9@._-]/g, '_');
+  return `wire_strip_data_${safeEmail}.json`;
+}
+
 async function ensureFolderAndFile(){
-  // find folder
-  let q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${APP_FOLDER_NAME}' and trashed=false`);
-  let res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
-  if (res.files && res.files.length){
-    folderId = res.files[0].id;
+  if (SHARED_FOLDER_ID){
+    // Shared mode: everyone writes into the same admin-created folder.
+    folderId = SHARED_FOLDER_ID;
   } else {
-    const created = await (await driveFetch(`${DRIVE_API}/files`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name: APP_FOLDER_NAME, mimeType:'application/vnd.google-apps.folder' })
-    })).json();
-    folderId = created.id;
+    // Private mode: each worker gets their own personal folder in their own Drive.
+    let q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${APP_FOLDER_NAME}' and trashed=false`);
+    let res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
+    if (res.files && res.files.length){
+      folderId = res.files[0].id;
+    } else {
+      const created = await (await driveFetch(`${DRIVE_API}/files`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name: APP_FOLDER_NAME, mimeType:'application/vnd.google-apps.folder' })
+      })).json();
+      folderId = created.id;
+    }
   }
-  // find file inside folder
-  let qf = encodeURIComponent(`name='${DATA_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
+  // find this worker's own file inside the folder
+  let qf = encodeURIComponent(`name='${myDataFileName()}' and '${folderId}' in parents and trashed=false`);
   let resf = await (await driveFetch(`${DRIVE_API}/files?q=${qf}&fields=files(id,name)`)).json();
   if (resf.files && resf.files.length){
     fileId = resf.files[0].id;
   } else {
     fileId = null; // will be created on first save
+  }
+
+  if (SHARED_FOLDER_ID){
+    $('combinedTab').classList.remove('app-hidden');
   }
 }
 
@@ -400,7 +453,7 @@ async function loadFromDrive(){
 async function saveToDrive(){
   setStatus('saving', 'Saving…');
   const payload = JSON.stringify({ itemMaster, receives, issues, savedAt: new Date().toISOString() });
-  const metadata = { name: DATA_FILE_NAME, parents: fileId ? undefined : [folderId] };
+  const metadata = { name: myDataFileName(), parents: fileId ? undefined : [folderId] };
   const boundary = 'wsboundary';
   const body =
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
@@ -482,6 +535,22 @@ function initUI(){
     $(id).addEventListener('change', renderDashboard);
   });
 
+  if (SHARED_FOLDER_ID){
+    const cbSel = $('cbMonth'); cbSel.innerHTML='';
+    MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; cbSel.appendChild(o); });
+    $('cbMonth').value = today.getMonth()+1;
+    $('cbYear').value = today.getFullYear();
+    $('cbRefreshBtn').addEventListener('click', refreshCombined);
+    ['cbMonth','cbYear'].forEach(id=>{
+      $(id).addEventListener('input', renderCombined);
+      $(id).addEventListener('change', renderCombined);
+    });
+    $('cbWorkerSelect').addEventListener('change', renderCombined);
+    document.querySelector('.tab[data-tab="combined"]').addEventListener('click', () => {
+      if (!compiledWorkers.length) refreshCombined();
+    });
+  }
+
   $('recAddBtn').addEventListener('click', () => {
     const date=$('recDate').value, item=$('recItem').value, qty=$('recQty').value, remarks=$('recRemarks').value;
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
@@ -505,15 +574,15 @@ function fillItemSelect(sel){
   itemMaster.forEach(it=>{ const o=document.createElement('option'); o.value=it.name; o.textContent=it.name; sel.appendChild(o); });
 }
 
-function computeStats(itemName, year, month){
+function computeStats(itemName, year, month, data){
+  data = data || { itemMaster, receives, issues };
   const monthStart = new Date(year, month-1, 1);
   const nextMonthStart = new Date(year, month, 1);
-  const master = itemMaster.find(i=>i.name===itemName);
-  const initOpen = master ? num(master.opening) : 0;
+  const initOpen = (data.itemMaster || []).filter(i=>i.name===itemName).reduce((s,i)=>s+num(i.opening),0);
   let openAdj=0, received=0, issued=0;
-  receives.forEach(r=>{ if(r.item!==itemName) return; const d=new Date(r.date);
+  (data.receives||[]).forEach(r=>{ if(r.item!==itemName) return; const d=new Date(r.date);
     if(d<monthStart) openAdj+=num(r.qty); else if(d>=monthStart && d<nextMonthStart) received+=num(r.qty); });
-  issues.forEach(r=>{ if(r.item!==itemName) return; const d=new Date(r.date);
+  (data.issues||[]).forEach(r=>{ if(r.item!==itemName) return; const d=new Date(r.date);
     if(d<monthStart) openAdj-=num(r.qty); else if(d>=monthStart && d<nextMonthStart) issued+=num(r.qty); });
   const opening = initOpen + openAdj;
   return { opening, received, issued, closing: opening+received-issued };
@@ -541,6 +610,90 @@ function renderDashboard(){
   });
   $('totOpen').textContent=fmt(tOpen); $('totRecv').textContent=fmt(tRecv);
   $('totIssue').textContent=fmt(tIssue); $('totClose').textContent=fmt(tClose);
+}
+
+let compiledWorkers = [];
+
+function workerLabelFromFileName(fileName){
+  // wire_strip_data_<email>.json -> <email>
+  let label = fileName.replace(/^wire_strip_data_/, '').replace(/\.json$/, '');
+  return label || fileName;
+}
+
+async function refreshCombined(){
+  if (!SHARED_FOLDER_ID) return;
+  setStatus('saving', 'Loading combined data…');
+  try{
+    const q = encodeURIComponent(`'${SHARED_FOLDER_ID}' in parents and trashed=false and name contains 'wire_strip_data_'`);
+    const res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
+    const files = res.files || [];
+    compiledWorkers = [];
+    for (const f of files){
+      try{
+        const r = await driveFetch(`${DRIVE_API}/files/${f.id}?alt=media`);
+        const d = await r.json();
+        compiledWorkers.push({
+          fileName: f.name,
+          label: workerLabelFromFileName(f.name),
+          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[]
+        });
+      }catch(e){ console.warn('Could not read', f.name, e); }
+    }
+    $('cbWorkerList').textContent = compiledWorkers.length + ' worker file(s) found in the shared folder.';
+
+    // populate the worker dropdown: "All Workers Combined" + one entry per worker
+    const sel = $('cbWorkerSelect');
+    const prevValue = sel.value;
+    sel.innerHTML = '<option value="__all__">All Workers Combined</option>';
+    compiledWorkers.forEach(w=>{
+      const o = document.createElement('option');
+      o.value = w.fileName;
+      o.textContent = w.label;
+      sel.appendChild(o);
+    });
+    if ([...sel.options].some(o=>o.value===prevValue)) sel.value = prevValue;
+
+    renderCombined();
+    setStatus(null, 'Saved to Drive');
+  }catch(e){
+    setStatus('off', 'Combined load failed');
+    console.error(e);
+  }
+}
+
+function renderCombined(){
+  const month = parseInt($('cbMonth').value,10), year = parseInt($('cbYear').value,10);
+  $('cbPeriodLabel').textContent = MONTHS[month-1] + ' ' + year;
+
+  const selectedFile = $('cbWorkerSelect') ? $('cbWorkerSelect').value : '__all__';
+  const merged = { itemMaster: [], receives: [], issues: [] };
+  const workersToUse = selectedFile === '__all__'
+    ? compiledWorkers
+    : compiledWorkers.filter(w => w.fileName === selectedFile);
+  workersToUse.forEach(w=>{
+    merged.itemMaster.push(...w.itemMaster);
+    merged.receives.push(...w.receives);
+    merged.issues.push(...w.issues);
+  });
+
+  const heading = document.querySelector('#panel-combined .card:nth-child(2) h2');
+  if (heading) heading.textContent = selectedFile === '__all__'
+    ? 'Combined Stock — All Workers Together'
+    : 'Stock — ' + workerLabelFromFileName(selectedFile);
+
+  const tbody = $('cbTableBody'); tbody.innerHTML = '';
+  let tOpen=0,tRecv=0,tIssue=0,tClose=0;
+  itemMaster.forEach(it=>{
+    const s = computeStats(it.name, year, month, merged);
+    tOpen+=s.opening; tRecv+=s.received; tIssue+=s.issued; tClose+=s.closing;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
+      <td class="num">${fmt(s.opening)}</td><td class="num">${fmt(s.received)}</td>
+      <td class="num">${fmt(s.issued)}</td><td class="num" style="font-weight:700${s.closing<0?';color:#b3452f':''}">${fmt(s.closing)}</td>`;
+    tbody.appendChild(tr);
+  });
+  $('cbTotOpen').textContent=fmt(tOpen); $('cbTotRecv').textContent=fmt(tRecv);
+  $('cbTotIssue').textContent=fmt(tIssue); $('cbTotClose').textContent=fmt(tClose);
 }
 
 function renderMaster(){
