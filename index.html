@@ -144,7 +144,7 @@
     <p>Har user ka data sirf unke apne Google Drive me, unke apne account me save hota hai. Koi doosra aapka data nahi dekh sakta.</p>
   </div>
 
-  <!-- ============ MAIN APP (hidden until signed in) ============ -->
+  <!-- ============ MAIN APP ============ -->
   <div id="app" class="app-hidden">
 
     <div class="tabs">
@@ -196,7 +196,6 @@
               <td class="num" id="totIssue">0.00</td><td class="num" id="totClose">0.00</td></tr></tfoot>
           </table>
         </div>
-        <div class="note">Month/Year badalte hi sab figures apne aap update ho jaate hain. Data aapki Google Drive me "Wire Strip Dashboard" folder ke andar save hota hai.</div>
       </div>
     </div>
 
@@ -210,7 +209,6 @@
           <div class="field"><label>Unit</label><input type="text" id="newItemUnit" placeholder="KG / LTR" style="width:100px"></div>
           <button class="btn green" id="addItemBtn">+ Add Item</button>
         </div>
-        <div class="note">Yahan se add kiya gaya item turant sabhi workers ko dikhne lagega.</div>
       </div>
       <div class="card">
         <h2>Item Master — Sizes &amp; Initial Opening Balance</h2>
@@ -277,26 +275,34 @@
     <!-- OIL RECOVERY SHEET -->
     <div class="panel" id="panel-oilrecovery">
       <div class="card">
-        <h2>Select Period</h2>
+        <h2>Select Period / Date Range</h2>
         <div class="row">
           <div class="field"><label>Month</label><select id="orMonth"></select></div>
           <div class="field"><label>Year</label><input type="number" id="orYear" min="2020" max="2100" style="width:100px"></div>
-          <div class="field app-hidden" id="orViewWrap" style="min-width:260px"><label>View</label><select id="orView"><option value="__mine__">My Entry</option></select></div>
+          <div class="field"><label>From Date</label><input type="date" id="orFrom"></div>
+          <div class="field"><label>To Date</label><input type="date" id="orTo"></div>
+          <div class="field app-hidden" id="orViewWrap" style="min-width:220px"><label>View</label><select id="orView"><option value="__mine__">My Entry</option></select></div>
           <button class="btn outline" id="orExportBtn">⬇ Download Excel</button>
           <div class="period-line">Showing: <b id="orPeriodLabel">—</b></div>
         </div>
       </div>
 
+      <!-- COLLAPSIBLE STANDARDS CARD -->
       <div class="card app-hidden" id="orStandardsCard">
-        <h2>Recovery Standards (Admin Only) <span class="admin-badge">XEN</span></h2>
-        <div class="note" style="margin-top:0 0 10px">Ye standard values sabhi workers ki calculation me use hoti hain. Sirf XEN hi inhe badal sakta hai.</div>
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>Capacity</th><th style="text-align:right">Standard Oil Consumption (LTR)</th><th style="text-align:right">DTC Oil Recovery %</th></tr></thead>
-            <tbody id="orStdTableBody"></tbody>
-          </table>
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" id="orStdToggleHeader">
+          <h2 style="margin:0">Recovery Standards (Admin Only) <span class="admin-badge">XEN</span></h2>
+          <button class="btn small outline" id="orStdToggleBtn" type="button">▶ Show / Change Standards</button>
         </div>
-        <div class="row" style="margin-top:12px"><button class="btn green" id="orStdSaveBtn">💾 Save Standards</button></div>
+        <div id="orStandardsBody" style="display:none;margin-top:14px">
+          <div class="note" style="margin-top:0 0 10px">Ye standard values sabhi workers ki calculation me use hoti hain. Sirf XEN hi inhe badal sakta hai.</div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Capacity</th><th style="text-align:right">Standard Oil Consumption (LTR)</th><th style="text-align:right">DTC Oil Recovery %</th></tr></thead>
+              <tbody id="orStdTableBody"></tbody>
+            </table>
+          </div>
+          <div class="row" style="margin-top:12px"><button class="btn green" id="orStdSaveBtn">💾 Save Standards</button></div>
+        </div>
       </div>
 
       <div class="card" id="orReadonlyNoteWrap" style="display:none">
@@ -318,15 +324,20 @@
         <table class="oilbal-table">
           <thead><tr><th></th><th style="text-align:right">Fresh Oil</th><th style="text-align:right">B&amp;C Oil</th><th style="text-align:right">Reclaim Oil</th></tr></thead>
           <tbody>
-            <tr><td>Opening Balance</td><td><input type="number" step="0.01" id="orFreshOpen"></td><td><input type="number" step="0.01" id="orBncOpen"></td><td><input type="number" step="0.01" id="orReclaimOpen"></td></tr>
-            <tr><td>Received During Month</td><td><input type="number" step="0.01" id="orFreshRecv"></td><td><input type="number" step="0.01" id="orBncRecv"></td><td><input type="number" step="0.01" id="orReclaimRecv"></td></tr>
-            <tr><td>Issued for TF Repairing</td><td><input type="number" step="0.01" id="orFreshIssTF"></td><td><input type="number" step="0.01" id="orBncIssTF"></td><td><input type="number" step="0.01" id="orReclaimIssTF"></td></tr>
-            <tr><td>Issued to Dist. Division</td><td><input type="number" step="0.01" id="orFreshIssDist"></td><td><input type="number" step="0.01" id="orBncIssDist"></td><td><input type="number" step="0.01" id="orReclaimIssDist"></td></tr>
-            <tr><td>Issued to Other Workshop / B&amp;C Oil Issue for Reclaim</td><td><input type="number" step="0.01" id="orFreshIssOther"></td><td><input type="number" step="0.01" id="orBncIssOther"></td><td><input type="number" step="0.01" id="orReclaimIssOther"></td></tr>
+            <tr><td>Opening Balance</td><td><input type="number" step="0.01" id="orFreshOpen" placeholder="0"></td><td><input type="number" step="0.01" id="orBncOpen" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimOpen" placeholder="0"></td></tr>
+            <tr><td>Received During Month</td><td><input type="number" step="0.01" id="orFreshRecv" placeholder="0"></td><td><input type="number" step="0.01" id="orBncRecv" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimRecv" placeholder="0"></td></tr>
+            <tr><td>Issued for TF Repairing</td><td><input type="number" step="0.01" id="orFreshIssTF" placeholder="0"></td><td><input type="number" step="0.01" id="orBncIssTF" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimIssTF" placeholder="0"></td></tr>
+            <tr><td>Issued to Dist. Division</td><td><input type="number" step="0.01" id="orFreshIssDist" placeholder="0"></td><td><input type="number" step="0.01" id="orBncIssDist" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimIssDist" placeholder="0"></td></tr>
+            <tr><td>Issued to Other Workshop / B&amp;C Oil Issue for Reclaim</td><td><input type="number" step="0.01" id="orFreshIssOther" placeholder="0"></td><td><input type="number" step="0.01" id="orBncIssOther" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimIssOther" placeholder="0"></td></tr>
             <tr style="font-weight:700"><td>Closing Balance</td><td class="num" id="orFreshClose">0.00</td><td class="num" id="orBncClose">0.00</td><td class="num" id="orReclaimClose">0.00</td></tr>
           </tbody>
         </table>
-        <div class="row" style="margin-top:14px"><button class="btn green" id="orSaveBtn">💾 Save Entry</button></div>
+        
+        <div class="row" style="margin-top:14px;gap:10px;align-items:center">
+          <button class="btn green" id="orSaveBtn">💾 Save Entry</button>
+          <button class="btn outline" id="orEditBtn">✏️ Edit Entry</button>
+          <span id="orLockStatus" style="font-size:12px;font-weight:600;color:var(--text-mute)"></span>
+        </div>
       </div>
 
       <div class="card">
@@ -341,7 +352,7 @@
       </div>
     </div>
 
-    <!-- ALL WORKERS COMBINED (only shown when SHARED_FOLDER_ID is configured) -->
+    <!-- ALL WORKERS COMBINED -->
     <div class="panel" id="panel-combined">
       <div class="card">
         <h2>Select Period</h2>
@@ -368,7 +379,6 @@
               <td class="num" id="cbTotIssue">0.00</td><td class="num" id="cbTotClose">0.00</td></tr></tfoot>
           </table>
         </div>
-        <div class="note">Ye view us shared folder ke andar sabhi workers ki files ko padhkar total nikalta hai. Sirf wahi log ye tab dekh paayenge jinke paas shared folder ka access hai.</div>
       </div>
     </div>
 
@@ -376,19 +386,11 @@
 </div>
 
 <script>
-/* =========================================================
-   1) ONE-TIME CONFIG — paste your own Google OAuth Client ID here
-   ========================================================= */
 const CLIENT_ID = "933740281356-2gf56thakcjdprj45n93nsc3dl2353bk.apps.googleusercontent.com";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const APP_FOLDER_NAME = "Wire Strip Dashboard";
-// Paste a shared Google Drive folder ID here to enable the "All Workers Combined" view.
-// Leave empty to keep every worker's data fully separate (personal folders, no combined view).
 const SHARED_FOLDER_ID = "1MplJLID09SaPw46UPwqntpWr4QILUWu4";
-// Only this email will see the "All Workers Combined" tab. Everyone else only sees their own data.
 const ADMIN_EMAIL = "xen.workshopazamgarh@puvvnl.in";
-
-/* ========================================================= */
 
 const DEFAULT_ITEMS = [
   ["DPC STRIP","DPC ALUM. STRIP 7.1X4.1MM","KG"],
@@ -432,13 +434,12 @@ let userEmail = null;
 let userName = null;
 let saveTimer = null;
 let isAdmin = false;
-let oilRecovery = []; // this worker's own oil-recovery monthly entries
-let oilStandards = null; // {consumption:{...}, dtcPercent:{...}} shared across everyone
-let orCompiledWorkers = []; // admin: all workers' oil-recovery data (loaded on demand)
+let oilRecovery = [];
+let oilStandards = null;
+let isOilEditing = false; // state for current oil entry editing
 
 const $ = id => document.getElementById(id);
 
-/* ---------------- Save indicator ---------------- */
 function setStatus(state, text){
   const dot = $('saveDot');
   dot.classList.remove('saving','off');
@@ -447,17 +448,16 @@ function setStatus(state, text){
   $('saveText').textContent = text;
 }
 
-/* ---------------- Google Sign-In ---------------- */
 let tokenClient;
 window.addEventListener('load', () => {
   if (!window.google || CLIENT_ID.startsWith("PASTE_")) {
-    $('gate').innerHTML = '<h2>Setup baaki hai</h2><p>index.html me CLIENT_ID abhi tak nahi bhara gaya. Neeche di gayi setup guide follow karein.</p>';
+    $('gate').innerHTML = '<h2>Setup baaki hai</h2><p>index.html me CLIENT_ID abhi tak nahi bhara gaya.</p>';
     return;
   }
   google.accounts.id.initialize({
     client_id: CLIENT_ID,
     callback: handleCredentialResponse,
-    auto_select: true,       // remember the last signed-in Google account
+    auto_select: true,
     cancel_on_tap_outside: false
   });
   google.accounts.id.renderButton($('gsiBtn'), { theme: 'filled_blue', size: 'large', text: 'signin_with' });
@@ -472,15 +472,12 @@ window.addEventListener('load', () => {
     }
   });
 
-  // Try to silently sign the person back in on page refresh, so they don't
-  // have to click "Sign in with Google" again every time they reopen the app.
   if (localStorage.getItem('ws_last_signed_in') === '1'){
-    google.accounts.id.prompt(); // silently re-issues credential if session is still valid
+    google.accounts.id.prompt();
   }
 });
 
 function handleCredentialResponse(response){
-  // Decode basic profile info from the ID token for display purposes
   try{
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
     userEmail = payload.email;
@@ -489,7 +486,6 @@ function handleCredentialResponse(response){
     $('userPic').src = payload.picture || '';
   }catch(e){}
   localStorage.setItem('ws_last_signed_in', '1');
-  // Now request a Drive access token (separate from the identity token)
   tokenClient.requestAccessToken({ prompt: '' });
 }
 
@@ -516,7 +512,6 @@ async function afterSignedIn(){
   setStatus(null, 'Saved to Drive');
 }
 
-/* ---------------- Google Drive helpers ---------------- */
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 
@@ -528,18 +523,14 @@ async function driveFetch(url, opts={}){
 }
 
 function myDataFileName(){
-  // Each worker gets their own uniquely-named file, so many people can safely
-  // share the same folder without overwriting each other's data.
   const safeEmail = (userEmail || 'unknown').replace(/[^a-zA-Z0-9@._-]/g, '_');
   return `wire_strip_data_${safeEmail}.json`;
 }
 
 async function ensureFolderAndFile(){
   if (SHARED_FOLDER_ID){
-    // Shared mode: everyone writes into the same admin-created folder.
     folderId = SHARED_FOLDER_ID;
   } else {
-    // Private mode: each worker gets their own personal folder in their own Drive.
     let q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${APP_FOLDER_NAME}' and trashed=false`);
     let res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
     if (res.files && res.files.length){
@@ -553,13 +544,13 @@ async function ensureFolderAndFile(){
       folderId = created.id;
     }
   }
-  // find this worker's own file inside the folder
+
   let qf = encodeURIComponent(`name='${myDataFileName()}' and '${folderId}' in parents and trashed=false`);
   let resf = await (await driveFetch(`${DRIVE_API}/files?q=${qf}&fields=files(id,name)`)).json();
   if (resf.files && resf.files.length){
     fileId = resf.files[0].id;
   } else {
-    fileId = null; // will be created on first save
+    fileId = null;
   }
 
   isAdmin = !!(userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase());
@@ -568,7 +559,6 @@ async function ensureFolderAndFile(){
     $('addItemCard').classList.remove('app-hidden');
   }
   if (isAdmin){
-    // XEN sirf oversee/monitor karte hain — unhe apni Receive/Issue entry karne ki zaroorat nahi.
     document.querySelector('.tab[data-tab="receive"]').classList.add('app-hidden');
     document.querySelector('.tab[data-tab="issue"]').classList.add('app-hidden');
     $('orStandardsCard').classList.remove('app-hidden');
@@ -586,12 +576,10 @@ async function loadFromDrive(){
       if (data.receives) receives = data.receives;
       if (data.issues) issues = data.issues;
       if (data.oilRecovery) oilRecovery = data.oilRecovery;
-    }catch(e){ console.warn('Load failed, starting fresh', e); }
+    }catch(e){ console.warn('Load failed', e); }
   }
   oilStandards = await loadOilStandards();
 
-  // Merge the base item list with any items the admin has added, keeping
-  // this worker's own previously-saved opening balances.
   let allItems = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit}));
   if (SHARED_FOLDER_ID){
     const customItems = await loadCustomItems();
@@ -602,7 +590,6 @@ async function loadFromDrive(){
   itemMaster = allItems.map(it => ({ ...it, opening: savedOpenings[it.name] || 0 }));
 }
 
-/* ---------------- Shared item list (admin can add new items) ---------------- */
 const CUSTOM_ITEMS_FILE = "custom_items.json";
 let customItemsFileId = null;
 
@@ -641,7 +628,6 @@ async function saveCustomItems(list){
   }
 }
 
-/* ---------------- Oil Recovery standards (admin-editable, shared) ---------------- */
 const OIL_STD_FILE = "oil_recovery_standards.json";
 let oilStdFileId = null;
 const OIL_CAPACITIES = [10,16,25,63,100,160,250,400,630,1000];
@@ -700,15 +686,11 @@ async function saveToDrive(){
   try{
     if (fileId){
       await driveFetch(`${DRIVE_UPLOAD}/files/${fileId}?uploadType=multipart`, {
-        method:'PATCH',
-        headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
-        body
+        method:'PATCH', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
       });
     } else {
       const created = await (await driveFetch(`${DRIVE_UPLOAD}/files?uploadType=multipart`, {
-        method:'POST',
-        headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
-        body
+        method:'POST', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
       })).json();
       fileId = created.id;
     }
@@ -721,28 +703,20 @@ async function saveToDrive(){
 
 function queueSave(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToDrive, 600); // debounce rapid edits
+  saveTimer = setTimeout(saveToDrive, 600);
 }
 
-/* ---------------- PWA install prompt ---------------- */
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
+  e.preventDefault(); deferredPrompt = e;
   $('installBtn').style.display = 'inline-block';
 });
 $('installBtn').addEventListener('click', async () => {
   if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  $('installBtn').style.display = 'none';
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt = null; $('installBtn').style.display = 'none';
 });
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
 
-/* ---------------- App UI logic ---------------- */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
 function fmt(n){ return n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
@@ -842,7 +816,6 @@ function initUI(){
   renderMaster(); renderReceiveLog(); renderIssueLog(); renderDashboard();
 }
 
-/* ---------------- Shared select → Edit/Delete top-bar wiring ---------------- */
 function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
   const selectAllChk = $(prefix+'SelectAll');
   const editBtn = $(prefix+'EditSelBtn');
@@ -872,14 +845,13 @@ function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
   delBtn.addEventListener('click', ()=>{
     const ids = getChecked();
     if (!ids.length) return;
-    if (!confirm(`${ids.length} entry delete karein? Ye undo nahi ho sakta.`)) return;
+    if (!confirm(`${ids.length} entry delete karein?`)) return;
     const arr = prefix==='rec' ? receives : issues;
     const filtered = arr.filter(x=> !ids.includes(x.id));
     if (prefix==='rec') receives = filtered; else issues = filtered;
     selectAllChk.checked = false;
     queueSave(); renderFn(); renderDashboard();
   });
-  // expose so renderFn's re-render can reset button state each time
   window['_refresh'+prefix+'Btns'] = refreshBtnStates;
 }
 
@@ -957,7 +929,6 @@ function renderDashboard(){
 let compiledWorkers = [];
 
 function workerLabelFromFileName(fileName){
-  // wire_strip_data_<email>.json -> <email>
   let label = fileName.replace(/^wire_strip_data_/, '').replace(/\.json$/, '');
   return label || fileName;
 }
@@ -984,15 +955,12 @@ async function refreshCombined(){
     }
     $('cbWorkerList').textContent = compiledWorkers.length + ' worker file(s) found in the shared folder.';
 
-    // populate the worker dropdown: "All Workers Combined" + one entry per worker
     const sel = $('cbWorkerSelect');
     const prevValue = sel.value;
     sel.innerHTML = '<option value="__all__">All Workers Combined</option>';
     compiledWorkers.forEach(w=>{
       const o = document.createElement('option');
-      o.value = w.fileName;
-      o.textContent = w.label;
-      sel.appendChild(o);
+      o.value = w.fileName; o.textContent = w.label; sel.appendChild(o);
     });
     if ([...sel.options].some(o=>o.value===prevValue)) sel.value = prevValue;
 
@@ -1000,8 +968,7 @@ async function refreshCombined(){
     if (isAdmin && $('orView')){ populateOrViewOptions(); renderOilRecoveryPanel(); }
     setStatus(null, 'Saved to Drive');
   }catch(e){
-    setStatus('off', 'Combined load failed');
-    console.error(e);
+    setStatus('off', 'Combined load failed'); console.error(e);
   }
 }
 
@@ -1013,9 +980,7 @@ function renderCombined(){
 
   const selectedFile = $('cbWorkerSelect') ? $('cbWorkerSelect').value : '__all__';
   const merged = { itemMaster: [], receives: [], issues: [] };
-  const workersToUse = selectedFile === '__all__'
-    ? compiledWorkers
-    : compiledWorkers.filter(w => w.fileName === selectedFile);
+  const workersToUse = selectedFile === '__all__' ? compiledWorkers : compiledWorkers.filter(w => w.fileName === selectedFile);
   workersToUse.forEach(w=>{
     merged.itemMaster.push(...w.itemMaster);
     merged.receives.push(...w.receives);
@@ -1023,9 +988,7 @@ function renderCombined(){
   });
 
   const heading = document.querySelector('#panel-combined .card:nth-child(2) h2');
-  if (heading) heading.textContent = selectedFile === '__all__'
-    ? 'Combined Stock — All Workers Together'
-    : 'Stock — ' + workerLabelFromFileName(selectedFile);
+  if (heading) heading.textContent = selectedFile === '__all__' ? 'Combined Stock — All Workers Together' : 'Stock — ' + workerLabelFromFileName(selectedFile);
 
   const t = renderStockTable('cbTableBody', from, to, merged);
   $('cbTotOpen').textContent=fmt(t.tOpen); $('cbTotRecv').textContent=fmt(t.tRecv);
@@ -1037,7 +1000,7 @@ function renderMaster(){
   itemMaster.forEach((it, idx)=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
-      <td><input type="number" step="0.01" value="${it.opening}" data-idx="${idx}" class="masterInput" style="width:140px;text-align:right"></td>`;
+      <td><input type="number" step="0.01" value="${it.opening||''}" placeholder="0" data-idx="${idx}" class="masterInput" style="width:140px;text-align:right"></td>`;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll('.masterInput').forEach(inp=>{
@@ -1128,7 +1091,7 @@ function renderIssueLog(){
 }
 
 /* =========================================================
-   OIL RECOVERY SHEET
+   OIL RECOVERY SHEET LOGIC & UPDATES
    ========================================================= */
 function initOilRecoveryUI(){
   const sel = $('orMonth'); sel.innerHTML='';
@@ -1136,14 +1099,29 @@ function initOilRecoveryUI(){
   const today = new Date();
   $('orMonth').value = today.getMonth()+1;
   $('orYear').value = today.getFullYear();
+  syncPeriodFromMonthYear('orMonth','orYear','orFrom','orTo');
 
   buildOilCapacityGrid('orRepairedGrid','orRep');
   buildOilCapacityGrid('orDtcGrid','orDtc');
   renderOilStandardsTable();
 
-  ['orMonth','orYear'].forEach(id=> $(id).addEventListener('change', renderOilRecoveryPanel));
-  $('orView').addEventListener('change', renderOilRecoveryPanel);
+  ['orMonth','orYear'].forEach(id=> $(id).addEventListener('change', ()=>{
+    syncPeriodFromMonthYear('orMonth','orYear','orFrom','orTo');
+    isOilEditing = false;
+    renderOilRecoveryPanel();
+  }));
+  
+  ['orFrom','orTo'].forEach(id=> $(id).addEventListener('change', ()=>{
+    isOilEditing = false;
+    renderOilRecoveryPanel();
+  }));
+
+  $('orView').addEventListener('change', ()=>{ isOilEditing = false; renderOilRecoveryPanel(); });
   $('orSaveBtn').addEventListener('click', saveOilRecoveryEntry);
+  $('orEditBtn').addEventListener('click', ()=>{ isOilEditing = true; renderOilRecoveryPanel(); });
+
+  // Standards Collapsible toggle handler
+  $('orStdToggleHeader').addEventListener('click', toggleOrStandards);
   if (isAdmin) $('orStdSaveBtn').addEventListener('click', saveOilStandardsFromUI);
   $('orExportBtn').addEventListener('click', exportOilRecoveryExcel);
 
@@ -1154,7 +1132,7 @@ function initOilRecoveryUI(){
 
   document.querySelector('.tab[data-tab="oilrecovery"]').addEventListener('click', ()=>{
     if (isAdmin && SHARED_FOLDER_ID){
-      if (!compiledWorkers.length) refreshCombined(); // will also call populateOrViewOptions + render when done
+      if (!compiledWorkers.length) refreshCombined();
       else { populateOrViewOptions(); renderOilRecoveryPanel(); }
     } else {
       renderOilRecoveryPanel();
@@ -1164,11 +1142,23 @@ function initOilRecoveryUI(){
   renderOilRecoveryPanel();
 }
 
+function toggleOrStandards(){
+  const body = $('orStandardsBody');
+  const btn = $('orStdToggleBtn');
+  if (body.style.display === 'none' || !body.style.display){
+    body.style.display = 'block';
+    btn.textContent = '▲ Hide Standards';
+  } else {
+    body.style.display = 'none';
+    btn.textContent = '▶ Show / Change Standards';
+  }
+}
+
 function buildOilCapacityGrid(gridId, prefix){
   const grid = $(gridId); grid.innerHTML = '';
   OIL_CAPACITIES.forEach(cap=>{
     const div = document.createElement('div'); div.className='cell';
-    div.innerHTML = `<label>${cap} KVA</label><input type="number" step="1" min="0" id="${prefix}_${cap}" value="0">`;
+    div.innerHTML = `<label>${cap} KVA</label><input type="number" step="1" min="0" id="${prefix}_${cap}" placeholder="0" value="">`;
     grid.appendChild(div);
   });
   grid.querySelectorAll('input').forEach(inp=> inp.addEventListener('input', updateOilRecoverySummary));
@@ -1180,8 +1170,8 @@ function renderOilStandardsTable(){
   OIL_CAPACITIES.forEach(cap=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${cap} KVA</td>
-      <td><input type="number" step="0.01" id="std_c_${cap}" value="${std.consumption[cap]||0}" style="width:110px;text-align:right" ${isAdmin?'':'disabled'}></td>
-      <td><input type="number" step="0.01" id="std_p_${cap}" value="${std.dtcPercent[cap]||0}" style="width:110px;text-align:right" ${isAdmin?'':'disabled'}></td>`;
+      <td><input type="number" step="0.01" id="std_c_${cap}" value="${std.consumption[cap]||''}" placeholder="0" style="width:110px;text-align:right" ${isAdmin?'':'disabled'}></td>
+      <td><input type="number" step="0.01" id="std_p_${cap}" value="${std.dtcPercent[cap]||''}" placeholder="0" style="width:110px;text-align:right" ${isAdmin?'':'disabled'}></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1217,7 +1207,7 @@ function findOrEntry(list, year, month){
 function emptyOrEntry(year, month){
   const z = {}; OIL_CAPACITIES.forEach(c=> z[c]=0);
   return {
-    year, month,
+    year, month, savedAt: null,
     tfRepaired: Object.assign({}, z), tfDTC: Object.assign({}, z),
     oil: {
       fresh:{opening:0,received:0,issuedTF:0,issuedDist:0,issuedOther:0},
@@ -1227,10 +1217,19 @@ function emptyOrEntry(year, month){
   };
 }
 
+function isEntryLockedByTime(entry){
+  if (!entry || !entry.savedAt) return false;
+  const savedDate = new Date(entry.savedAt);
+  const diffDays = (new Date() - savedDate) / (1000 * 60 * 60 * 24);
+  return diffDays > 7;
+}
+
 function fillOilFormFromEntry(entry, editable){
   OIL_CAPACITIES.forEach(cap=>{
-    $('orRep_'+cap).value = entry.tfRepaired[cap]||0;
-    $('orDtc_'+cap).value = entry.tfDTC[cap]||0;
+    const repVal = entry.tfRepaired[cap];
+    const dtcVal = entry.tfDTC[cap];
+    $('orRep_'+cap).value = repVal ? repVal : '';
+    $('orDtc_'+cap).value = dtcVal ? dtcVal : '';
     $('orRep_'+cap).disabled = !editable;
     $('orDtc_'+cap).disabled = !editable;
   });
@@ -1240,7 +1239,10 @@ function fillOilFormFromEntry(entry, editable){
     orBncOpen:o.bnc.opening, orBncRecv:o.bnc.received, orBncIssTF:o.bnc.issuedTF, orBncIssDist:o.bnc.issuedDist, orBncIssOther:o.bnc.issuedOther,
     orReclaimOpen:o.reclaim.opening, orReclaimRecv:o.reclaim.received, orReclaimIssTF:o.reclaim.issuedTF, orReclaimIssDist:o.reclaim.issuedDist, orReclaimIssOther:o.reclaim.issuedOther
   };
-  Object.entries(map).forEach(([id,val])=>{ $(id).value = val; $(id).disabled = !editable; });
+  Object.entries(map).forEach(([id,val])=>{
+    $(id).value = val ? val : '';
+    $(id).disabled = !editable;
+  });
   updateOilBalanceClosing();
   updateOilRecoverySummary();
 }
@@ -1288,16 +1290,22 @@ function updateOilRecoverySummary(){
 async function saveOilRecoveryEntry(){
   const year = parseInt($('orYear').value,10), month = parseInt($('orMonth').value,10);
   const entry = readOilFormToEntry(year, month);
+  entry.savedAt = new Date().toISOString();
+  
   const idx = oilRecovery.findIndex(e=> e.year===year && e.month===month);
   if (idx>=0) oilRecovery[idx] = entry; else oilRecovery.push(entry);
+  
   queueSave();
-  updateOilRecoverySummary();
+  isOilEditing = false;
+  renderOilRecoveryPanel();
 }
 
 function renderOilRecoveryPanel(){
   const year = parseInt($('orYear').value,10), month = parseInt($('orMonth').value,10);
+  const fromV = $('orFrom').value, toV = $('orTo').value;
   if (!year || !month) return;
-  $('orPeriodLabel').textContent = MONTHS[month-1] + ' ' + year;
+  
+  $('orPeriodLabel').textContent = (fromV && toV) ? (fromV + ' → ' + toV) : (MONTHS[month-1] + ' ' + year);
   renderOilStandardsTable();
 
   const view = (isAdmin && $('orView')) ? $('orView').value : '__mine__';
@@ -1306,8 +1314,31 @@ function renderOilRecoveryPanel(){
   if (view === '__mine__'){
     noteWrap.style.display = 'none';
     const entry = findOrEntry(oilRecovery, year, month) || emptyOrEntry(year, month);
-    fillOilFormFromEntry(entry, true);
-    $('orSaveBtn').style.display = 'inline-block';
+    const lockedByTime = isEntryLockedByTime(entry) && !isAdmin;
+
+    if (lockedByTime) {
+      fillOilFormFromEntry(entry, false);
+      $('orSaveBtn').style.display = 'none';
+      $('orEditBtn').style.display = 'none';
+      $('orLockStatus').textContent = '🔒 Ye entry 1 hafte (7 din) se purani hai aur lock ho chuki hai. Sirf XEN hi change kar sakte hain.';
+      $('orLockStatus').style.color = 'var(--red)';
+    } else {
+      const isSaved = !!entry.savedAt;
+      const canEdit = isOilEditing || !isSaved;
+      fillOilFormFromEntry(entry, canEdit);
+      
+      if (canEdit) {
+        $('orSaveBtn').style.display = 'inline-block';
+        $('orEditBtn').style.display = 'none';
+        $('orLockStatus').textContent = isSaved ? '✏️ Editing Mode Enabled' : 'Nai Entry';
+        $('orLockStatus').style.color = 'var(--green)';
+      } else {
+        $('orSaveBtn').style.display = 'none';
+        $('orEditBtn').style.display = 'inline-block';
+        $('orLockStatus').textContent = '🔒 Data Saved (Read-Only). Badlav karne ke liye Edit dabayein.';
+        $('orLockStatus').style.color = 'var(--navy)';
+      }
+    }
   } else if (view === '__all__'){
     noteWrap.style.display='block'; note.textContent = 'Ye "All Workers Combined" summary hai — read-only, sabhi workers ke figures jode gaye hain.';
     const merged = emptyOrEntry(year, month);
@@ -1319,6 +1350,8 @@ function renderOilRecoveryPanel(){
     });
     fillOilFormFromEntry(merged, false);
     $('orSaveBtn').style.display = 'none';
+    $('orEditBtn').style.display = 'none';
+    $('orLockStatus').textContent = '';
   } else {
     const w = compiledWorkers.find(x=>x.fileName===view);
     noteWrap.style.display='block';
@@ -1326,11 +1359,13 @@ function renderOilRecoveryPanel(){
     const entry = w ? (findOrEntry(w.oilRecovery, year, month) || emptyOrEntry(year, month)) : emptyOrEntry(year, month);
     fillOilFormFromEntry(entry, false);
     $('orSaveBtn').style.display = 'none';
+    $('orEditBtn').style.display = 'none';
+    $('orLockStatus').textContent = '';
   }
 }
 
 /* =========================================================
-   EXCEL EXPORT (SheetJS)
+   EXCEL EXPORTS
    ========================================================= */
 function exportDashboardExcel(){
   const from = $('dbFrom').value, to = $('dbTo').value;
