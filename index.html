@@ -1246,7 +1246,7 @@ function initOilRecoveryUI(){
   ['orFreshOpen','orFreshRecv','orFreshIssTF','orFreshIssDist','orFreshIssOther',
    'orBncOpen','orBncRecv','orBncIssTF','orBncIssDist','orBncIssOther',
    'orReclaimOpen','orReclaimRecv','orReclaimIssTF','orReclaimIssDist','orReclaimIssOther'
-  ].forEach(id=> $(id).addEventListener('input', updateOilBalanceClosing));
+  ].forEach(id=> $(id).addEventListener('input', ()=>{ isOilEditing = true; updateOilBalanceClosing(); }));
 
   document.querySelector('.tab[data-tab="oilrecovery"]').addEventListener('click', ()=>{
     if (isAdmin && SHARED_FOLDER_ID){
@@ -1279,7 +1279,7 @@ function buildOilCapacityGrid(gridId, prefix){
     div.innerHTML = `<label>${cap} KVA</label><input type="number" step="1" min="0" id="${prefix}_${cap}" placeholder="0" value="">`;
     grid.appendChild(div);
   });
-  grid.querySelectorAll('input').forEach(inp=> inp.addEventListener('input', updateOilRecoverySummary));
+  grid.querySelectorAll('input').forEach(inp=> inp.addEventListener('input', ()=>{ isOilEditing = true; updateOilRecoverySummary(); }));
 }
 
 function renderOilStandardsTable(){
