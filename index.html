@@ -472,6 +472,8 @@ let oilRecovery = [];
 let oilStandards = null;
 let isOilEditing = false;
 let autoSyncInterval = null;
+let isSyncing = false;      // rok-ta hai overlapping sync calls ko
+let isRefreshingCombined = false; // rok-ta hai overlapping combined refresh ko
 
 const $ = id => document.getElementById(id);
 
@@ -538,12 +540,11 @@ $('signOutBtn').addEventListener('click', () => {
 
 // FULL SYNC FUNCTION (Used by Manual Refresh and Auto-Refresh)
 async function fullSyncData() {
-  if (!accessToken) return;
+  if (!accessToken || isSyncing) return;
+  isSyncing = true;
   try {
     await loadFromDrive();
-    if (SHARED_FOLDER_ID) {
-      await refreshCombined();
-    }
+    if (SHARED_FOLDER_ID) await refreshCombined();
     if (!isAdmin) renderDashboard();
     renderReceiveLog();
     renderIssueLog();
@@ -551,6 +552,8 @@ async function fullSyncData() {
     setStatus(null, 'Saved to Drive (Live 3s)');
   } catch(e) {
     console.error('Full sync error:', e);
+  } finally {
+    isSyncing = false;
   }
 }
 
@@ -567,8 +570,8 @@ async function afterSignedIn(){
   // Real-time Update Sync loop (Every 3 Seconds)
   if (autoSyncInterval) clearInterval(autoSyncInterval);
   autoSyncInterval = setInterval(async () => {
-    // Only auto refresh if user is not currently editing an inline log row
-    if (!editingReceiveId && !editingIssueId && !isOilEditing) {
+    // Editing me na chhede, aur agar pichla sync abhi chal hi raha hai to skip (overlap hi instability ki wajah thi)
+    if (!editingReceiveId && !editingIssueId && !isOilEditing && !isSyncing) {
       await fullSyncData();
     }
   }, 3000);
@@ -1014,24 +1017,26 @@ function workerLabelFromFileName(fileName){
 }
 
 async function refreshCombined(){
-  if (!SHARED_FOLDER_ID) return;
+  if (!SHARED_FOLDER_ID || isRefreshingCombined) return; // overlap hone se hi purana data flicker/gayab hota tha
+  isRefreshingCombined = true;
   try{
     const q = encodeURIComponent(`'${SHARED_FOLDER_ID}' in parents and trashed=false and name contains 'wire_strip_data_'`);
     const res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
     const files = res.files || [];
-    compiledWorkers = [];
-    for (const f of files){
+
+    // Sab files ek saath (parallel) fetch karo — pehle sequential tha, isliye zyada workers hone par
+    // 3-second cycle ke andar poora load hi nahi hota tha aur beech me stale/khali data dikhta tha.
+    const results = await Promise.all(files.map(async f=>{
       try{
-        const r = await driveFetch(`${DRIVE_API}/files/${f.id}?alt=media`);
-        const d = await r.json();
-        compiledWorkers.push({
-          fileName: f.name,
-          label: workerLabelFromFileName(f.name),
-          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[],
-          oilRecovery: d.oilRecovery||[]
-        });
-      }catch(e){ console.warn('Could not read', f.name, e); }
-    }
+        const d = await (await driveFetch(`${DRIVE_API}/files/${f.id}?alt=media`)).json();
+        return { fileName: f.name, label: workerLabelFromFileName(f.name),
+          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[], oilRecovery: d.oilRecovery||[] };
+      }catch(e){ console.warn('Could not read', f.name, e); return null; }
+    }));
+
+    // Naya data poora taiyar hone ke baad hi purane compiledWorkers ko replace karo,
+    // isse table kabhi beech me khali/flicker nahi hoga.
+    compiledWorkers = results.filter(Boolean);
     $('cbWorkerList').textContent = compiledWorkers.length + ' workshop file(s) synced in real-time.';
 
     const sel = $('cbWorkerSelect');
@@ -1055,6 +1060,8 @@ async function refreshCombined(){
     if (isAdmin && $('orView')){ populateOrViewOptions(); renderOilRecoveryPanel(); }
   }catch(e){
     console.error('Real-time update error:', e);
+  } finally {
+    isRefreshingCombined = false;
   }
 }
 
