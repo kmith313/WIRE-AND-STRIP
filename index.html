@@ -206,7 +206,7 @@
       <div class="card">
         <h2>Receive Log</h2>
         <div class="table-scroll">
-          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th><th></th></tr></thead>
+          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
           <tbody id="recTableBody"></tbody></table>
         </div>
       </div>
@@ -227,7 +227,7 @@
       <div class="card">
         <h2>Issue Log</h2>
         <div class="table-scroll">
-          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th><th></th></tr></thead>
+          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
           <tbody id="isTableBody"></tbody></table>
         </div>
       </div>
@@ -276,6 +276,8 @@ const APP_FOLDER_NAME = "Wire Strip Dashboard";
 // Paste a shared Google Drive folder ID here to enable the "All Workers Combined" view.
 // Leave empty to keep every worker's data fully separate (personal folders, no combined view).
 const SHARED_FOLDER_ID = "1MplJLID09SaPw46UPwqntpWr4QILUWu4";
+// Only this email will see the "All Workers Combined" tab. Everyone else only sees their own data.
+const ADMIN_EMAIL = "xen.workshopazamgarh@puvvnl.in";
 
 /* ========================================================= */
 
@@ -307,6 +309,8 @@ const DEFAULT_ITEMS = [
   ["D.P.C WIRE","D.P.C. WIRE (COPPER) 12.5 SWG.","KG"],
   ["D.P.C WIRE","D.P.C. WIRE (ALU) 14 SWG.","KG"],
   ["D.P.C WIRE","D.P.C. WIRE (CU) 14 SWG.","KG"],
+  ["OIL","FRESH OIL","LTR"],
+  ["OIL","RECLAIMED OIL","LTR"],
 ];
 
 let itemMaster = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit,opening:0}));
@@ -339,7 +343,9 @@ window.addEventListener('load', () => {
   }
   google.accounts.id.initialize({
     client_id: CLIENT_ID,
-    callback: handleCredentialResponse
+    callback: handleCredentialResponse,
+    auto_select: true,       // remember the last signed-in Google account
+    cancel_on_tap_outside: false
   });
   google.accounts.id.renderButton($('gsiBtn'), { theme: 'filled_blue', size: 'large', text: 'signin_with' });
 
@@ -352,6 +358,12 @@ window.addEventListener('load', () => {
       await afterSignedIn();
     }
   });
+
+  // Try to silently sign the person back in on page refresh, so they don't
+  // have to click "Sign in with Google" again every time they reopen the app.
+  if (localStorage.getItem('ws_last_signed_in') === '1'){
+    google.accounts.id.prompt(); // silently re-issues credential if session is still valid
+  }
 });
 
 function handleCredentialResponse(response){
@@ -363,6 +375,7 @@ function handleCredentialResponse(response){
     $('userName').textContent = userName;
     $('userPic').src = payload.picture || '';
   }catch(e){}
+  localStorage.setItem('ws_last_signed_in', '1');
   // Now request a Drive access token (separate from the identity token)
   tokenClient.requestAccessToken({ prompt: '' });
 }
@@ -370,6 +383,8 @@ function handleCredentialResponse(response){
 $('signOutBtn').addEventListener('click', () => {
   if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
   accessToken = null; fileId = null; folderId = null;
+  localStorage.removeItem('ws_last_signed_in');
+  google.accounts.id.disableAutoSelect();
   $('app').classList.add('app-hidden');
   $('gate').classList.remove('app-hidden');
   $('signedInBox').style.display = 'none';
@@ -434,7 +449,7 @@ async function ensureFolderAndFile(){
     fileId = null; // will be created on first save
   }
 
-  if (SHARED_FOLDER_ID){
+  if (SHARED_FOLDER_ID && userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase()){
     $('combinedTab').classList.remove('app-hidden');
   }
 }
@@ -716,15 +731,8 @@ function renderReceiveLog(){
   const tbody = $('recTableBody'); tbody.innerHTML = '';
   receives.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>
-      <td><button class="btn ghost" data-id="${r.id}">Delete</button></td>`;
+    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
     tbody.appendChild(tr);
-  });
-  tbody.querySelectorAll('button[data-id]').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      receives = receives.filter(r=>r.id !== b.dataset.id);
-      queueSave(); renderReceiveLog(); renderDashboard();
-    });
   });
 }
 
@@ -732,15 +740,8 @@ function renderIssueLog(){
   const tbody = $('isTableBody'); tbody.innerHTML = '';
   issues.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>
-      <td><button class="btn ghost" data-id="${r.id}">Delete</button></td>`;
+    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
     tbody.appendChild(tr);
-  });
-  tbody.querySelectorAll('button[data-id]').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      issues = issues.filter(r=>r.id !== b.dataset.id);
-      queueSave(); renderIssueLog(); renderDashboard();
-    });
   });
 }
 </script>
