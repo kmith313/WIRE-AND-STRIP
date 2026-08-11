@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wire & Strip Stock Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#16324a">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --navy:#16324a; --navy-2:#1f4a6b; --steel:#5b7a94; --steel-light:#e7edf2;
+    --amber:#d97b2b; --amber-light:#fbe6d1; --green:#2f7d5b; --green-light:#dcf0e7;
+    --red:#b3452f; --red-light:#f6e1db; --bg:#f4f6f8; --card:#ffffff; --line:#d7e0e6;
+    --text:#1c2b36; --text-mute:#5f7181; --mono: 'IBM Plex Mono','Consolas',monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 18px 60px;}
+  .topbar{background:linear-gradient(135deg,var(--navy),var(--navy-2));border-radius:14px;
+    padding:22px 26px;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+    box-shadow:0 6px 18px rgba(22,50,74,.25);}
+  .topbar h1{margin:0;font-size:22px;letter-spacing:.3px;}
+  .topbar p{margin:4px 0 0;font-size:12.5px;color:#c9dae7;}
+  .top-right{display:flex;align-items:center;gap:12px;}
+  .save-indicator{font-size:11.5px;color:#c9dae7;display:flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#5fd196;box-shadow:0 0 0 3px rgba(95,209,150,.25);}
+  .dot.saving{background:#f2c14e;box-shadow:0 0 0 3px rgba(242,193,78,.25);}
+  .dot.off{background:#b3452f;box-shadow:0 0 0 3px rgba(179,69,47,.25);}
+
+  .gbtn{background:#fff;color:var(--navy);border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;}
+  .gbtn:hover{background:#eef3f7;}
+  .user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);padding:6px 12px;border-radius:20px;font-size:12.5px;}
+  .user-chip img{width:22px;height:22px;border-radius:50%;}
+  .signout{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:6px 10px;font-size:11.5px;cursor:pointer;}
+  .install-btn{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;display:none;}
+
+  .gate{text-align:center;padding:60px 20px;}
+  .gate h2{color:var(--navy);font-size:20px;}
+  .gate p{color:var(--text-mute);font-size:13.5px;max-width:420px;margin:8px auto 22px;}
+
+  .tabs{display:flex;gap:6px;margin:20px 0 18px;border-bottom:2px solid var(--line);}
+  .tab{padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--text-mute);
+    border-bottom:3px solid transparent;user-select:none;}
+  .tab.active{color:var(--navy);border-bottom-color:var(--amber);}
+  .tab:hover{color:var(--navy);}
+
+  .panel{display:none;}
+  .panel.active{display:block;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+    margin-bottom:16px;}
+  .card h2{margin:0 0 12px;font-size:14px;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:11.5px;color:var(--text-mute);font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+  select,input[type=date],input[type=number],input[type=text]{
+    border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:13.5px;
+    font-family:inherit;background:#fff;color:var(--text);min-width:120px;}
+  select:focus,input:focus{outline:2px solid var(--amber);outline-offset:1px;}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 18px;
+    font-size:13.5px;font-weight:600;cursor:pointer;}
+  .btn:hover{background:var(--navy-2);}
+  .btn.green{background:var(--green);} .btn.green:hover{background:#25664a;}
+  .btn.red{background:var(--red);} .btn.red:hover{background:#8f371f;}
+  .btn.ghost{background:transparent;color:var(--red);border:1px solid var(--red);padding:5px 10px;font-size:12px;}
+
+  .period-line{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-mute);margin-top:4px;}
+  .period-line b{color:var(--navy);font-size:14px;}
+
+  .cardgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px;}
+  .stat{border-radius:10px;padding:14px 16px;text-align:center;}
+  .stat .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;opacity:.75;}
+  .stat .val{font-family:var(--mono);font-size:22px;font-weight:700;margin-top:6px;}
+  .stat.blue{background:var(--steel-light);color:var(--navy);}
+  .stat.green{background:var(--green-light);color:var(--green);}
+  .stat.amber{background:var(--amber-light);color:#8a4a13;}
+  .stat.navy{background:var(--navy);color:#fff;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{background:var(--navy);color:#fff;text-align:left;padding:9px 10px;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0;}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--line);}
+  tbody tr:nth-child(even){background:#fafcfd;}
+  tbody tr:hover{background:var(--steel-light);}
+  td.num{font-family:var(--mono);text-align:right;}
+  td.center{text-align:center;}
+  .table-scroll{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:10px;}
+  tfoot td{background:var(--navy);color:#fff;font-weight:700;font-family:var(--mono);}
+
+  .cat-pill{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--steel-light);color:var(--navy-2);}
+
+  .note{font-size:11.5px;color:var(--text-mute);margin-top:10px;line-height:1.5;}
+  .yellow-hint{background:var(--amber-light);border-left:3px solid var(--amber);padding:8px 12px;border-radius:6px;font-size:12px;color:#7a4514;margin-bottom:12px;}
+  .app-hidden{display:none;}
+  @media(max-width:800px){.cardgrid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>Wire &amp; Strip Stock Dashboard</h1>
+      <p>Opening + Received − Issued = Closing Balance &nbsp;|&nbsp; Data saves to your own Google Drive</p>
+    </div>
+    <div class="top-right">
+      <button class="install-btn" id="installBtn">📲 Install App</button>
+      <div id="signedOutBox"><div id="gsiBtn"></div></div>
+      <div id="signedInBox" class="app-hidden" style="display:flex;align-items:center;gap:10px;">
+        <div class="save-indicator"><span class="dot" id="saveDot"></span><span id="saveText">Ready</span></div>
+        <div class="user-chip"><img id="userPic" src="" alt=""><span id="userName"></span></div>
+        <button class="signout" id="signOutBtn">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SIGNED-OUT GATE ============ -->
+  <div class="gate" id="gate">
+    <h2>Apne Google account se sign in karein</h2>
+    <p>Har user ka data sirf unke apne Google Drive me, unke apne account me save hota hai. Koi doosra aapka data nahi dekh sakta.</p>
+  </div>
+
+  <!-- ============ MAIN APP (hidden until signed in) ============ -->
+  <div id="app" class="app-hidden">
+
+    <div class="tabs">
+      <div class="tab active" data-tab="dashboard">Dashboard</div>
+      <div class="tab" data-tab="master">Item Master</div>
+      <div class="tab" data-tab="receive">Receive Entry</div>
+      <div class="tab" data-tab="issue">Issue Entry</div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="card">
+        <h2>Select Period</h2>
+        <div class="row">
+          <div class="field"><label>Month</label><select id="dbMonth"></select></div>
+          <div class="field"><label>Year</label><input type="number" id="dbYear" min="2020" max="2100" style="width:100px"></div>
+          <div class="period-line">Showing: <b id="periodLabel">—</b></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Quick Lookup — Select a Size</h2>
+        <div class="row">
+          <div class="field" style="min-width:280px"><label>Wire / Strip Size</label><select id="lookupItem"></select></div>
+        </div>
+        <div class="cardgrid">
+          <div class="stat blue"><div class="lbl">Opening Balance</div><div class="val" id="stOpen">0.00</div></div>
+          <div class="stat green"><div class="lbl">Received (Month)</div><div class="val" id="stRecv">0.00</div></div>
+          <div class="stat amber"><div class="lbl">Issued (Month)</div><div class="val" id="stIssue">0.00</div></div>
+          <div class="stat navy"><div class="lbl">Closing Balance</div><div class="val" id="stClose">0.00</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Full Stock Summary — All Sizes</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Category</th><th>Item Name (Size)</th><th>Unit</th>
+              <th style="text-align:right">Opening</th><th style="text-align:right">Received</th>
+              <th style="text-align:right">Issued</th><th style="text-align:right">Closing</th></tr></thead>
+            <tbody id="fullTableBody"></tbody>
+            <tfoot><tr><td colspan="3">TOTAL (All Sizes)</td>
+              <td class="num" id="totOpen">0.00</td><td class="num" id="totRecv">0.00</td>
+              <td class="num" id="totIssue">0.00</td><td class="num" id="totClose">0.00</td></tr></tfoot>
+          </table>
+        </div>
+        <div class="note">Month/Year badalte hi sab figures apne aap update ho jaate hain. Data aapki Google Drive me "Wire Strip Dashboard" folder ke andar save hota hai.</div>
+      </div>
+    </div>
+
+    <!-- ITEM MASTER -->
+    <div class="panel" id="panel-master">
+      <div class="card">
+        <h2>Item Master — Sizes &amp; Initial Opening Balance</h2>
+        <div class="yellow-hint">Initial Opening Balance sirf <b>ek baar</b> bharein. Uske baad balance apne aap carry-forward hoga.</div>
+        <div class="table-scroll" style="max-height:560px">
+          <table>
+            <thead><tr><th>Category</th><th>Item Name (Size)</th><th>Unit</th><th style="text-align:right">Initial Opening Balance</th></tr></thead>
+            <tbody id="masterTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECEIVE ENTRY -->
+    <div class="panel" id="panel-receive">
+      <div class="card">
+        <h2>Add Receive Entry — Jitna Material Mila</h2>
+        <div class="row">
+          <div class="field"><label>Date</label><input type="date" id="recDate"></div>
+          <div class="field" style="min-width:260px"><label>Item</label><select id="recItem"></select></div>
+          <div class="field"><label>Quantity (KG)</label><input type="number" id="recQty" step="0.01" min="0" style="width:120px"></div>
+          <div class="field" style="flex:1;min-width:200px"><label>Supplier / Remarks</label><input type="text" id="recRemarks"></div>
+          <button class="btn green" id="recAddBtn">+ Add Entry</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Receive Log</h2>
+        <div class="table-scroll">
+          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th><th></th></tr></thead>
+          <tbody id="recTableBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ISSUE ENTRY -->
+    <div class="panel" id="panel-issue">
+      <div class="card">
+        <h2>Add Issue Entry — Jitna Material Issue Kiya</h2>
+        <div class="row">
+          <div class="field"><label>Date</label><input type="date" id="isDate"></div>
+          <div class="field" style="min-width:260px"><label>Item</label><select id="isItem"></select></div>
+          <div class="field"><label>Quantity (KG)</label><input type="number" id="isQty" step="0.01" min="0" style="width:120px"></div>
+          <div class="field" style="flex:1;min-width:200px"><label>Issued To / Remarks</label><input type="text" id="isRemarks"></div>
+          <button class="btn red" id="isAddBtn">+ Add Entry</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Issue Log</h2>
+        <div class="table-scroll">
+          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th><th></th></tr></thead>
+          <tbody id="isTableBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   1) ONE-TIME CONFIG — paste your own Google OAuth Client ID here
+   ========================================================= */
+const CLIENT_ID = "PASTE_YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const APP_FOLDER_NAME = "Wire Strip Dashboard";
+const DATA_FILE_NAME = "wire_strip_data.json";
+
+/* ========================================================= */
+
+const DEFAULT_ITEMS = [
+  ["DPC STRIP","DPC ALUM. STRIP 7.1X4.1MM","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 6.6X4.8 MM","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 7X3 MM","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 8X2.75 MM","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 7X4 MM","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 8X3.5MM","KG"],
+  ["DPC STRIP","D.P.C. STRIP (ALU) 10X4 M.M.","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 10X4.4MM","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 10.5X5.5 MM","KG"],
+  ["DPC STRIP","DPC ALUM. STRIP 11X5MM","KG"],
+  ["SE WIRE","SE ALLUMINIUM WIRE 17 SWG.","KG"],
+  ["SE WIRE","SE ALUM. WIRE 19 SWG","KG"],
+  ["SE WIRE","SE. ALUM. WINDING WIRE 16.5 SWG","KG"],
+  ["SE WIRE","SE. ALUM. WINDING WIRE 17.5 SWG","KG"],
+  ["SE WIRE","SUPER ENAMEL ALU. WIRE 16 SWG","KG"],
+  ["SE WIRE","SUPER ENAMEL ALU. WIRE 21 SWG.","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (ALU) 12.5 SWG.","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (ALU) 13 SWG.","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (ALU) 16 SWG.","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (ALU) 21 SWG.","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (COPPER) 13 SWG.","KG"],
+  ["D.P.C WIRE","DPC ALLUMINIUM WIRE 17.5 SWG","KG"],
+  ["D.P.C WIRE","DPC ALUM. WIRE 16.5 SWG","KG"],
+  ["D.P.C WIRE","DPC ALUM. WIRE 17 SWG","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (COPPER) 12.5 SWG.","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (ALU) 14 SWG.","KG"],
+  ["D.P.C WIRE","D.P.C. WIRE (CU) 14 SWG.","KG"],
+];
+
+let itemMaster = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit,opening:0}));
+let receives = [];
+let issues = [];
+let accessToken = null;
+let fileId = null;
+let folderId = null;
+let saveTimer = null;
+
+const $ = id => document.getElementById(id);
+
+/* ---------------- Save indicator ---------------- */
+function setStatus(state, text){
+  const dot = $('saveDot');
+  dot.classList.remove('saving','off');
+  if(state==='saving') dot.classList.add('saving');
+  if(state==='off') dot.classList.add('off');
+  $('saveText').textContent = text;
+}
+
+/* ---------------- Google Sign-In ---------------- */
+let tokenClient;
+window.addEventListener('load', () => {
+  if (!window.google || CLIENT_ID.startsWith("PASTE_")) {
+    $('gate').innerHTML = '<h2>Setup baaki hai</h2><p>index.html me CLIENT_ID abhi tak nahi bhara gaya. Neeche di gayi setup guide follow karein.</p>';
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: handleCredentialResponse
+  });
+  google.accounts.id.renderButton($('gsiBtn'), { theme: 'filled_blue', size: 'large', text: 'signin_with' });
+
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if (resp.error) { setStatus('off','Sign-in failed'); return; }
+      accessToken = resp.access_token;
+      await afterSignedIn();
+    }
+  });
+});
+
+function handleCredentialResponse(response){
+  // Decode basic profile info from the ID token for display purposes
+  try{
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    $('userName').textContent = payload.name || payload.email;
+    $('userPic').src = payload.picture || '';
+  }catch(e){}
+  // Now request a Drive access token (separate from the identity token)
+  tokenClient.requestAccessToken({ prompt: '' });
+}
+
+$('signOutBtn').addEventListener('click', () => {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
+  accessToken = null; fileId = null; folderId = null;
+  $('app').classList.add('app-hidden');
+  $('gate').classList.remove('app-hidden');
+  $('signedInBox').style.display = 'none';
+  $('signedOutBox').style.display = 'block';
+});
+
+async function afterSignedIn(){
+  $('gate').classList.add('app-hidden');
+  $('app').classList.remove('app-hidden');
+  $('signedInBox').style.display = 'flex';
+  $('signedOutBox').style.display = 'none';
+  setStatus('saving', 'Loading from Drive…');
+  await ensureFolderAndFile();
+  await loadFromDrive();
+  initUI();
+  setStatus(null, 'Saved to Drive');
+}
+
+/* ---------------- Google Drive helpers ---------------- */
+const DRIVE_API = "https://www.googleapis.com/drive/v3";
+const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
+
+async function driveFetch(url, opts={}){
+  opts.headers = Object.assign({ Authorization: 'Bearer ' + accessToken }, opts.headers || {});
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error('Drive API error ' + r.status);
+  return r;
+}
+
+async function ensureFolderAndFile(){
+  // find folder
+  let q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${APP_FOLDER_NAME}' and trashed=false`);
+  let res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
+  if (res.files && res.files.length){
+    folderId = res.files[0].id;
+  } else {
+    const created = await (await driveFetch(`${DRIVE_API}/files`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name: APP_FOLDER_NAME, mimeType:'application/vnd.google-apps.folder' })
+    })).json();
+    folderId = created.id;
+  }
+  // find file inside folder
+  let qf = encodeURIComponent(`name='${DATA_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
+  let resf = await (await driveFetch(`${DRIVE_API}/files?q=${qf}&fields=files(id,name)`)).json();
+  if (resf.files && resf.files.length){
+    fileId = resf.files[0].id;
+  } else {
+    fileId = null; // will be created on first save
+  }
+}
+
+async function loadFromDrive(){
+  if (!fileId) return;
+  try{
+    const r = await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`);
+    const data = await r.json();
+    if (data.itemMaster) itemMaster = data.itemMaster;
+    if (data.receives) receives = data.receives;
+    if (data.issues) issues = data.issues;
+  }catch(e){ console.warn('Load failed, starting fresh', e); }
+}
+
+async function saveToDrive(){
+  setStatus('saving', 'Saving…');
+  const payload = JSON.stringify({ itemMaster, receives, issues, savedAt: new Date().toISOString() });
+  const metadata = { name: DATA_FILE_NAME, parents: fileId ? undefined : [folderId] };
+  const boundary = 'wsboundary';
+  const body =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
+  try{
+    if (fileId){
+      await driveFetch(`${DRIVE_UPLOAD}/files/${fileId}?uploadType=multipart`, {
+        method:'PATCH',
+        headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
+        body
+      });
+    } else {
+      const created = await (await driveFetch(`${DRIVE_UPLOAD}/files?uploadType=multipart`, {
+        method:'POST',
+        headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
+        body
+      })).json();
+      fileId = created.id;
+    }
+    setStatus(null, 'Saved to Drive');
+  }catch(e){
+    setStatus('off', 'Save failed — retrying next edit');
+    console.error(e);
+  }
+}
+
+function queueSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToDrive, 600); // debounce rapid edits
+}
+
+/* ---------------- PWA install prompt ---------------- */
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  $('installBtn').style.display = 'inline-block';
+});
+$('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  $('installBtn').style.display = 'none';
+});
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+/* ---------------- App UI logic ---------------- */
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function fmt(n){ return n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function initUI(){
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      $('panel-'+t.dataset.tab).classList.add('active');
+    });
+  });
+
+  const sel = $('dbMonth'); sel.innerHTML='';
+  MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; sel.appendChild(o); });
+  const today = new Date();
+  $('dbMonth').value = today.getMonth()+1;
+  $('dbYear').value = today.getFullYear();
+  $('recDate').value = today.toISOString().slice(0,10);
+  $('isDate').value = today.toISOString().slice(0,10);
+
+  fillItemSelect($('lookupItem'));
+  fillItemSelect($('recItem'));
+  fillItemSelect($('isItem'));
+
+  ['dbMonth','dbYear','lookupItem'].forEach(id=>{
+    $(id).addEventListener('input', renderDashboard);
+    $(id).addEventListener('change', renderDashboard);
+  });
+
+  $('recAddBtn').addEventListener('click', () => {
+    const date=$('recDate').value, item=$('recItem').value, qty=$('recQty').value, remarks=$('recRemarks').value;
+    if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
+    receives.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
+    queueSave(); $('recQty').value=''; $('recRemarks').value='';
+    renderReceiveLog(); renderDashboard();
+  });
+  $('isAddBtn').addEventListener('click', () => {
+    const date=$('isDate').value, item=$('isItem').value, qty=$('isQty').value, remarks=$('isRemarks').value;
+    if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
+    issues.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
+    queueSave(); $('isQty').value=''; $('isRemarks').value='';
+    renderIssueLog(); renderDashboard();
+  });
+
+  renderMaster(); renderReceiveLog(); renderIssueLog(); renderDashboard();
+}
+
+function fillItemSelect(sel){
+  sel.innerHTML = '';
+  itemMaster.forEach(it=>{ const o=document.createElement('option'); o.value=it.name; o.textContent=it.name; sel.appendChild(o); });
+}
+
+function computeStats(itemName, year, month){
+  const monthStart = new Date(year, month-1, 1);
+  const nextMonthStart = new Date(year, month, 1);
+  const master = itemMaster.find(i=>i.name===itemName);
+  const initOpen = master ? num(master.opening) : 0;
+  let openAdj=0, received=0, issued=0;
+  receives.forEach(r=>{ if(r.item!==itemName) return; const d=new Date(r.date);
+    if(d<monthStart) openAdj+=num(r.qty); else if(d>=monthStart && d<nextMonthStart) received+=num(r.qty); });
+  issues.forEach(r=>{ if(r.item!==itemName) return; const d=new Date(r.date);
+    if(d<monthStart) openAdj-=num(r.qty); else if(d>=monthStart && d<nextMonthStart) issued+=num(r.qty); });
+  const opening = initOpen + openAdj;
+  return { opening, received, issued, closing: opening+received-issued };
+}
+
+function renderDashboard(){
+  const month = parseInt($('dbMonth').value,10), year = parseInt($('dbYear').value,10);
+  $('periodLabel').textContent = MONTHS[month-1] + ' ' + year;
+  const lookupName = $('lookupItem').value;
+  if(lookupName){
+    const s = computeStats(lookupName, year, month);
+    $('stOpen').textContent = fmt(s.opening); $('stRecv').textContent = fmt(s.received);
+    $('stIssue').textContent = fmt(s.issued); $('stClose').textContent = fmt(s.closing);
+  }
+  const tbody = $('fullTableBody'); tbody.innerHTML = '';
+  let tOpen=0,tRecv=0,tIssue=0,tClose=0;
+  itemMaster.forEach(it=>{
+    const s = computeStats(it.name, year, month);
+    tOpen+=s.opening; tRecv+=s.received; tIssue+=s.issued; tClose+=s.closing;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
+      <td class="num">${fmt(s.opening)}</td><td class="num">${fmt(s.received)}</td>
+      <td class="num">${fmt(s.issued)}</td><td class="num" style="font-weight:700${s.closing<0?';color:#b3452f':''}">${fmt(s.closing)}</td>`;
+    tbody.appendChild(tr);
+  });
+  $('totOpen').textContent=fmt(tOpen); $('totRecv').textContent=fmt(tRecv);
+  $('totIssue').textContent=fmt(tIssue); $('totClose').textContent=fmt(tClose);
+}
+
+function renderMaster(){
+  const tbody = $('masterTableBody'); tbody.innerHTML = '';
+  itemMaster.forEach((it, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
+      <td><input type="number" step="0.01" value="${it.opening}" data-idx="${idx}" class="masterInput" style="width:140px;text-align:right"></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.masterInput').forEach(inp=>{
+    inp.addEventListener('change', (e)=>{
+      itemMaster[parseInt(e.target.dataset.idx,10)].opening = num(e.target.value);
+      queueSave(); renderDashboard();
+    });
+  });
+}
+
+function renderReceiveLog(){
+  const tbody = $('recTableBody'); tbody.innerHTML = '';
+  receives.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>
+      <td><button class="btn ghost" data-id="${r.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('button[data-id]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      receives = receives.filter(r=>r.id !== b.dataset.id);
+      queueSave(); renderReceiveLog(); renderDashboard();
+    });
+  });
+}
+
+function renderIssueLog(){
+  const tbody = $('isTableBody'); tbody.innerHTML = '';
+  issues.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>
+      <td><button class="btn ghost" data-id="${r.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('button[data-id]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      issues = issues.filter(r=>r.id !== b.dataset.id);
+      queueSave(); renderIssueLog(); renderDashboard();
+    });
+  });
+}
+</script>
+</body>
+</html>
