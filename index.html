@@ -144,9 +144,88 @@
   .oilbal-table td input{width:100%;text-align:right;}
   .readonly-note{background:var(--steel-light);color:var(--navy-2);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;}
   .admin-badge{font-size:10px;background:var(--amber);color:#fff;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px;}
+
+  /* ===== ACTION TOAST NOTIFICATIONS ===== */
+  #toastStack{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    z-index:9999; display:flex; flex-direction:column; align-items:center; gap:10px;
+    pointer-events:none; width:100%; max-width:380px; padding:0 14px;
+  }
+  .toast{
+    pointer-events:auto;
+    display:flex; align-items:center; gap:12px;
+    background:#ffffff; border-radius:12px; padding:12px 16px;
+    box-shadow:0 10px 30px rgba(22,50,74,.22), 0 2px 8px rgba(22,50,74,.12);
+    border-left:5px solid var(--navy);
+    width:100%;
+    animation: toastIn .38s cubic-bezier(.34,1.56,.64,1) forwards;
+    font-size:13.5px; font-weight:600; color:var(--text);
+  }
+  .toast.leaving{ animation: toastOut .32s ease forwards; }
+  .toast .toast-icon{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; color:#fff; background:var(--navy);
+    animation: toastPop .45s .05s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .toast .toast-body{display:flex; flex-direction:column; gap:1px; min-width:0;}
+  .toast .toast-title{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;}
+  .toast .toast-msg{font-size:12.5px; color:var(--text-mute); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+  .toast.recv{border-left-color:var(--green);}
+  .toast.recv .toast-icon{background:var(--green);}
+  .toast.recv .toast-title{color:var(--green);}
+
+  .toast.issue{border-left-color:var(--amber);}
+  .toast.issue .toast-icon{background:var(--amber);}
+  .toast.issue .toast-title{color:#8a4a13;}
+
+  .toast.del{border-left-color:var(--red);}
+  .toast.del .toast-icon{background:var(--red); animation: toastShake .5s .05s both;}
+  .toast.del .toast-title{color:var(--red);}
+
+  @keyframes toastIn{
+    from{opacity:0; transform:translateY(24px) scale(.92);}
+    to{opacity:1; transform:translateY(0) scale(1);}
+  }
+  @keyframes toastOut{
+    from{opacity:1; transform:translateY(0) scale(1);}
+    to{opacity:0; transform:translateY(-14px) scale(.94);}
+  }
+  @keyframes toastPop{
+    0%{transform:scale(0) rotate(-30deg); opacity:0;}
+    60%{transform:scale(1.25) rotate(6deg); opacity:1;}
+    100%{transform:scale(1) rotate(0deg); opacity:1;}
+  }
+  @keyframes toastShake{
+    0%,100%{transform:translateX(0) rotate(0);}
+    20%{transform:translateX(-3px) rotate(-8deg);}
+    40%{transform:translateX(3px) rotate(8deg);}
+    60%{transform:translateX(-2px) rotate(-5deg);}
+    80%{transform:translateX(2px) rotate(5deg);}
+  }
+
+  /* Row flash when a new/updated entry lands in the table */
+  @keyframes rowFlashGreen{
+    0%{background:var(--green-light);} 100%{background:transparent;}
+  }
+  @keyframes rowFlashAmber{
+    0%{background:var(--amber-light);} 100%{background:transparent;}
+  }
+  @keyframes rowFlashRed{
+    0%{background:var(--red-light);} 50%{background:var(--red-light);} 100%{opacity:0;}
+  }
+  tr.flash-recv{animation: rowFlashGreen 1.4s ease;}
+  tr.flash-issue{animation: rowFlashAmber 1.4s ease;}
+
+  @media(max-width:520px){
+    #toastStack{max-width:calc(100% - 24px);}
+  }
 </style>
 </head>
 <body>
+
+<div id="toastStack"></div>
 
 <div class="wrap">
   <div class="topbar">
@@ -797,6 +876,40 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
 function fmt(n){ return n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
+/* ===== ACTION TOAST NOTIFICATIONS ===== */
+const TOAST_CONFIG = {
+  recv:   { cls:'recv',  icon:'📥', title:'Received' },
+  issue:  { cls:'issue', icon:'📤', title:'Issued' },
+  del:    { cls:'del',   icon:'🗑', title:'Deleted' },
+  update: { cls:'',      icon:'✏️', title:'Updated' }
+};
+function showToast(type, msg){
+  const cfg = TOAST_CONFIG[type] || TOAST_CONFIG.recv;
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+  const el = document.createElement('div');
+  el.className = `toast ${cfg.cls}`;
+  el.innerHTML = `<div class="toast-icon">${cfg.icon}</div>
+    <div class="toast-body">
+      <div class="toast-title">${cfg.title}</div>
+      <div class="toast-msg">${msg}</div>
+    </div>`;
+  stack.appendChild(el);
+  const remove = () => {
+    if (!el.isConnected) return;
+    el.classList.add('leaving');
+    setTimeout(()=> el.remove(), 320);
+  };
+  const timer = setTimeout(remove, 2400);
+  el.addEventListener('click', ()=>{ clearTimeout(timer); remove(); });
+}
+function flashRow(el, kind){
+  if (!el) return;
+  el.classList.remove('flash-recv','flash-issue');
+  void el.offsetWidth; // restart animation
+  el.classList.add(kind === 'issue' ? 'flash-issue' : 'flash-recv');
+}
+
 function initUI(){
   document.querySelectorAll('.tab').forEach(t=>{
     t.addEventListener('click', ()=>{
@@ -881,6 +994,7 @@ function initUI(){
     receives.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('recQty').value=''; $('recRemarks').value='';
     renderReceiveLog(); if (!isAdmin) renderDashboard();
+    showToast('recv', `${item} — ${fmt(num(qty))} qty`);
   });
   $('isAddBtn').addEventListener('click', () => {
     const date=$('isDate').value, item=$('isItem').value, qty=$('isQty').value, remarks=$('isRemarks').value;
@@ -888,6 +1002,7 @@ function initUI(){
     issues.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('isQty').value=''; $('isRemarks').value='';
     renderIssueLog(); if (!isAdmin) renderDashboard();
+    showToast('issue', `${item} — ${fmt(num(qty))} qty`);
   });
 
   setupSelectDeleteBar('rec', receives, renderReceiveLog, ()=>editingReceiveId, v=>editingReceiveId=v);
@@ -933,6 +1048,7 @@ function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
     if (prefix==='rec') receives = filtered; else issues = filtered;
     selectAllChk.checked = false;
     queueSave(); renderFn(); if (!isAdmin) renderDashboard();
+    showToast('del', `${ids.length} entry removed`);
   });
   window['_refresh'+prefix+'Btns'] = refreshBtnStates;
 }
@@ -1155,6 +1271,7 @@ function renderReceiveLog(){
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingReceiveId = null;
     queueSave(); renderReceiveLog(); if (!isAdmin) renderDashboard();
+    showToast('update', `${item} — ${fmt(qty)} qty`);
   }));
   $('recSelectAll').checked = false;
   if (window._refreshrecBtns) window._refreshrecBtns();
@@ -1204,6 +1321,7 @@ function renderIssueLog(){
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingIssueId = null;
     queueSave(); renderIssueLog(); if (!isAdmin) renderDashboard();
+    showToast('update', `${item} — ${fmt(qty)} qty`);
   }));
   $('isSelectAll').checked = false;
   if (window._refreshisBtns) window._refreshisBtns();
