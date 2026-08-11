@@ -151,7 +151,7 @@
   <div class="topbar">
     <div>
       <h1>Wire &amp; Strip Stock Dashboard</h1>
-      <p>Opening + Received − Issued = Closing Balance &nbsp;|&nbsp; Data saves to your own Google Drive</p>
+      <p>Opening + Received − Issued = Closing Balance &nbsp;|&nbsp; Real-time Sync Active</p>
     </div>
     <div class="top-right">
       <button class="install-btn" id="installBtn">📲 Install App</button>
@@ -164,7 +164,7 @@
     </div>
   </div>
 
-  <!-- ============ SIGNED-OUT GATE ============ -->
+  <!-- SIGNED-OUT GATE -->
   <div class="gate" id="gate">
     <div class="gate-card">
       <h2 class="gate-title">EWD AZAMGARH</h2>
@@ -172,14 +172,14 @@
     </div>
   </div>
 
-  <!-- ============ MAIN APP ============ -->
+  <!-- MAIN APP -->
   <div id="app" class="app-hidden">
 
     <div class="tabs">
-      <div class="tab active" data-tab="dashboard">Dashboard</div>
+      <div class="tab active" id="tab-dashboard" data-tab="dashboard">Dashboard</div>
       <div class="tab" data-tab="master">Item Master</div>
-      <div class="tab" data-tab="receive">Receive Entry</div>
-      <div class="tab" data-tab="issue">Issue Entry</div>
+      <div class="tab" id="tab-receive" data-tab="receive">Receive Entry</div>
+      <div class="tab" id="tab-issue" data-tab="issue">Issue Entry</div>
       <div class="tab" data-tab="oilrecovery">Oil Recovery Sheet</div>
       <div class="tab app-hidden" id="combinedTab" data-tab="combined">All Workers Combined</div>
     </div>
@@ -252,7 +252,7 @@
 
     <!-- RECEIVE ENTRY -->
     <div class="panel" id="panel-receive">
-      <div class="card">
+      <div class="card" id="recFormCard">
         <h2>Add Receive Entry — Jitna Material Mila</h2>
         <div class="row">
           <div class="field"><label>Date</label><input type="date" id="recDate"></div>
@@ -267,10 +267,11 @@
         <div class="rowbtns">
           <button class="btn outline small" id="recEditSelBtn" disabled>✏️ Edit Selected</button>
           <button class="btn red small" id="recDelSelBtn" disabled>🗑 Delete Selected</button>
-          <button class="btn outline small" id="recExportBtn">⬇ Download Excel</button>
+          <button class="btn outline small" id="recExportBtn">⬇ Download Receive Excel</button>
+          <button class="btn green small app-hidden" id="xenExportBothBtn">⬇ Download Combined (Receive + Issue) Excel</button>
         </div>
         <div class="table-scroll">
-          <table><thead><tr><th class="chkcol"><input type="checkbox" id="recSelectAll"></th><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
+          <table><thead><tr><th class="chkcol"><input type="checkbox" id="recSelectAll"></th><th>Date</th><th>Workshop / Worker</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
           <tbody id="recTableBody"></tbody></table>
         </div>
       </div>
@@ -278,7 +279,7 @@
 
     <!-- ISSUE ENTRY -->
     <div class="panel" id="panel-issue">
-      <div class="card">
+      <div class="card" id="isFormCard">
         <h2>Add Issue Entry — Jitna Material Issue Kiya</h2>
         <div class="row">
           <div class="field"><label>Date</label><input type="date" id="isDate"></div>
@@ -293,10 +294,10 @@
         <div class="rowbtns">
           <button class="btn outline small" id="isEditSelBtn" disabled>✏️ Edit Selected</button>
           <button class="btn red small" id="isDelSelBtn" disabled>🗑 Delete Selected</button>
-          <button class="btn outline small" id="isExportBtn">⬇ Download Excel</button>
+          <button class="btn outline small" id="isExportBtn">⬇ Download Issue Excel</button>
         </div>
         <div class="table-scroll">
-          <table><thead><tr><th class="chkcol"><input type="checkbox" id="isSelectAll"></th><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
+          <table><thead><tr><th class="chkcol"><input type="checkbox" id="isSelectAll"></th><th>Date</th><th>Workshop / Worker</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
           <tbody id="isTableBody"></tbody></table>
         </div>
       </div>
@@ -351,6 +352,7 @@
 
       <div class="card">
         <h2>Oil Balance (LTR)</h2>
+        <div class="yellow-hint" id="orOpenHint">Opening balance sirf pehli entry me bharein. Uske baad yeh apne aap Carry-Forward hoga.</div>
         <table class="oilbal-table">
           <thead><tr><th></th><th style="text-align:right">Fresh Oil</th><th style="text-align:right">B&amp;C Oil</th><th style="text-align:right">Reclaim Oil</th></tr></thead>
           <tbody>
@@ -467,6 +469,7 @@ let isAdmin = false;
 let oilRecovery = [];
 let oilStandards = null;
 let isOilEditing = false;
+let autoSyncInterval = null;
 
 const $ = id => document.getElementById(id);
 
@@ -521,6 +524,7 @@ function handleCredentialResponse(response){
 
 $('signOutBtn').addEventListener('click', () => {
   if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
+  if (autoSyncInterval) clearInterval(autoSyncInterval);
   accessToken = null; fileId = null; folderId = null;
   localStorage.removeItem('ws_last_signed_in');
   google.accounts.id.disableAutoSelect();
@@ -539,7 +543,16 @@ async function afterSignedIn(){
   await ensureFolderAndFile();
   await loadFromDrive();
   initUI();
-  setStatus(null, 'Saved to Drive');
+  
+  // Real-time Update Sync loop (Every 3 Seconds)
+  if (SHARED_FOLDER_ID) {
+    if (autoSyncInterval) clearInterval(autoSyncInterval);
+    autoSyncInterval = setInterval(async () => {
+      await refreshCombined();
+    }, 3000);
+  }
+  
+  setStatus(null, 'Saved to Drive (Live)');
 }
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
@@ -587,12 +600,22 @@ async function ensureFolderAndFile(){
   if (SHARED_FOLDER_ID && isAdmin){
     $('combinedTab').classList.remove('app-hidden');
     $('addItemCard').classList.remove('app-hidden');
+    $('xenExportBothBtn').classList.remove('app-hidden');
   }
+  
+  // XEN SPECIFIC CONFIGURATION: Hide Dashboard, Keep Receive/Issue Visible
   if (isAdmin){
-    document.querySelector('.tab[data-tab="receive"]').classList.add('app-hidden');
-    document.querySelector('.tab[data-tab="issue"]').classList.add('app-hidden');
+    $('tab-dashboard').classList.add('app-hidden'); // Hide Dashboard for XEN
+    $('tab-receive').classList.remove('app-hidden'); // Keep Receive Visible
+    $('tab-issue').classList.remove('app-hidden');   // Keep Issue Visible
     $('orStandardsCard').classList.remove('app-hidden');
     if (SHARED_FOLDER_ID) $('orViewWrap').classList.remove('app-hidden');
+    
+    // Switch default active tab to Receive Entry for XEN
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    $('tab-receive').classList.add('active');
+    $('panel-receive').classList.add('active');
   }
 }
 
@@ -724,7 +747,7 @@ async function saveToDrive(){
       })).json();
       fileId = created.id;
     }
-    setStatus(null, 'Saved to Drive');
+    setStatus(null, 'Saved to Drive (Live)');
   }catch(e){
     setStatus('off', 'Save failed — retrying next edit');
     console.error(e);
@@ -733,7 +756,7 @@ async function saveToDrive(){
 
 function queueSave(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToDrive, 600);
+  saveTimer = setTimeout(saveToDrive, 400);
 }
 
 let deferredPrompt;
@@ -786,6 +809,7 @@ function initUI(){
 
   $('recExportBtn') && $('recExportBtn').addEventListener('click', exportReceiveExcel);
   $('isExportBtn') && $('isExportBtn').addEventListener('click', exportIssueExcel);
+  $('xenExportBothBtn') && $('xenExportBothBtn').addEventListener('click', exportCombinedReceiveIssueExcel);
 
   if (SHARED_FOLDER_ID){
     const cbSel = $('cbMonth'); cbSel.innerHTML='';
@@ -819,7 +843,7 @@ function initUI(){
         fillItemSelect($('lookupItem')); fillItemSelect($('recItem')); fillItemSelect($('isItem'));
         renderMaster(); renderDashboard();
         $('newItemCategory').value=''; $('newItemName').value=''; $('newItemUnit').value='';
-        setStatus(null, 'Saved to Drive');
+        setStatus(null, 'Saved to Drive (Live)');
       }catch(e){
         setStatus('off', 'Add item failed'); console.error(e);
       }
@@ -831,14 +855,14 @@ function initUI(){
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
     receives.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('recQty').value=''; $('recRemarks').value='';
-    renderReceiveLog(); renderDashboard();
+    renderReceiveLog(); if (!isAdmin) renderDashboard();
   });
   $('isAddBtn').addEventListener('click', () => {
     const date=$('isDate').value, item=$('isItem').value, qty=$('isQty').value, remarks=$('isRemarks').value;
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
     issues.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('isQty').value=''; $('isRemarks').value='';
-    renderIssueLog(); renderDashboard();
+    renderIssueLog(); if (!isAdmin) renderDashboard();
   });
 
   setupSelectDeleteBar('rec', receives, renderReceiveLog, ()=>editingReceiveId, v=>editingReceiveId=v);
@@ -846,7 +870,7 @@ function initUI(){
 
   initOilRecoveryUI();
 
-  renderMaster(); renderReceiveLog(); renderIssueLog(); renderDashboard();
+  renderMaster(); renderReceiveLog(); renderIssueLog(); if (!isAdmin) renderDashboard();
 }
 
 function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
@@ -883,7 +907,7 @@ function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
     const filtered = arr.filter(x=> !ids.includes(x.id));
     if (prefix==='rec') receives = filtered; else issues = filtered;
     selectAllChk.checked = false;
-    queueSave(); renderFn(); renderDashboard();
+    queueSave(); renderFn(); if (!isAdmin) renderDashboard();
   });
   window['_refresh'+prefix+'Btns'] = refreshBtnStates;
 }
@@ -945,6 +969,7 @@ function syncPeriodFromMonthYear(monthSelId, yearInpId, fromInpId, toInpId){
 }
 
 function renderDashboard(){
+  if (isAdmin) return;
   const fromV = $('dbFrom').value, toV = $('dbTo').value;
   if (!fromV || !toV) return;
   $('periodLabel').textContent = fromV + ' → ' + toV;
@@ -968,7 +993,6 @@ function workerLabelFromFileName(fileName){
 
 async function refreshCombined(){
   if (!SHARED_FOLDER_ID) return;
-  setStatus('saving', 'Loading combined data…');
   try{
     const q = encodeURIComponent(`'${SHARED_FOLDER_ID}' in parents and trashed=false and name contains 'wire_strip_data_'`);
     const res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
@@ -986,28 +1010,29 @@ async function refreshCombined(){
         });
       }catch(e){ console.warn('Could not read', f.name, e); }
     }
-    $('cbWorkerList').textContent = compiledWorkers.length + ' worker file(s) found in the shared folder.';
+    $('cbWorkerList').textContent = compiledWorkers.length + ' workshop file(s) synced in real-time.';
 
     const sel = $('cbWorkerSelect');
-    const prevValue = sel.value;
-    sel.innerHTML = '<option value="__all__">All Workers Combined</option>';
-    
-    // Deduplicate worker selection list
-    const seenWorkers = new Set();
-    compiledWorkers.forEach(w=>{
-      if (!seenWorkers.has(w.label)) {
-        seenWorkers.add(w.label);
-        const o = document.createElement('option');
-        o.value = w.fileName; o.textContent = w.label; sel.appendChild(o);
-      }
-    });
-    if ([...sel.options].some(o=>o.value===prevValue)) sel.value = prevValue;
+    if (sel) {
+      const prevValue = sel.value;
+      sel.innerHTML = '<option value="__all__">All Workers Combined</option>';
+      const seenWorkers = new Set();
+      compiledWorkers.forEach(w=>{
+        if (!seenWorkers.has(w.label)) {
+          seenWorkers.add(w.label);
+          const o = document.createElement('option');
+          o.value = w.fileName; o.textContent = w.label; sel.appendChild(o);
+        }
+      });
+      if ([...sel.options].some(o=>o.value===prevValue)) sel.value = prevValue;
+    }
 
     renderCombined();
+    renderReceiveLog();
+    renderIssueLog();
     if (isAdmin && $('orView')){ populateOrViewOptions(); renderOilRecoveryPanel(); }
-    setStatus(null, 'Saved to Drive');
   }catch(e){
-    setStatus('off', 'Combined load failed'); console.error(e);
+    console.error('Real-time update error:', e);
   }
 }
 
@@ -1045,7 +1070,7 @@ function renderMaster(){
   tbody.querySelectorAll('.masterInput').forEach(inp=>{
     inp.addEventListener('change', (e)=>{
       itemMaster[parseInt(e.target.dataset.idx,10)].opening = num(e.target.value);
-      queueSave(); renderDashboard();
+      queueSave(); if (!isAdmin) renderDashboard();
     });
   });
 }
@@ -1059,11 +1084,24 @@ function itemOptionsHtml(selected){
 
 function renderReceiveLog(){
   const tbody = $('recTableBody'); tbody.innerHTML = '';
-  receives.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+  let allRecs = [];
+  
+  if (isAdmin && compiledWorkers.length > 0) {
+    compiledWorkers.forEach(w => {
+      (w.receives || []).forEach(r => {
+        allRecs.push({ ...r, worker: w.label });
+      });
+    });
+  } else {
+    allRecs = receives.map(r => ({ ...r, worker: userName || 'My Entry' }));
+  }
+
+  allRecs.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
     const tr = document.createElement('tr');
     if (editingReceiveId === r.id){
       tr.innerHTML = `<td class="chkcol"></td>
         <td><input type="date" class="e-date" value="${r.date}" style="width:130px"></td>
+        <td><b>${r.worker}</b></td>
         <td><select class="e-item">${itemOptionsHtml(r.item)}</select></td>
         <td><input type="number" step="0.01" class="e-qty" value="${r.qty}" style="width:90px;text-align:right"></td>
         <td><input type="text" class="e-remarks" value="${(r.remarks||'').replace(/"/g,'&quot;')}" style="width:100%">
@@ -1071,7 +1109,7 @@ function renderReceiveLog(){
         </td>`;
     } else {
       tr.innerHTML = `<td class="chkcol"><input type="checkbox" class="recRowChk" value="${r.id}"></td>
-        <td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
+        <td>${r.date}</td><td><span class="cat-pill">${r.worker}</span></td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
     }
     tbody.appendChild(tr);
   });
@@ -1087,7 +1125,7 @@ function renderReceiveLog(){
     const entry = receives.find(r=>r.id===id);
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingReceiveId = null;
-    queueSave(); renderReceiveLog(); renderDashboard();
+    queueSave(); renderReceiveLog(); if (!isAdmin) renderDashboard();
   }));
   $('recSelectAll').checked = false;
   if (window._refreshrecBtns) window._refreshrecBtns();
@@ -1095,11 +1133,24 @@ function renderReceiveLog(){
 
 function renderIssueLog(){
   const tbody = $('isTableBody'); tbody.innerHTML = '';
-  issues.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+  let allIssues = [];
+
+  if (isAdmin && compiledWorkers.length > 0) {
+    compiledWorkers.forEach(w => {
+      (w.issues || []).forEach(r => {
+        allIssues.push({ ...r, worker: w.label });
+      });
+    });
+  } else {
+    allIssues = issues.map(r => ({ ...r, worker: userName || 'My Entry' }));
+  }
+
+  allIssues.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
     const tr = document.createElement('tr');
     if (editingIssueId === r.id){
       tr.innerHTML = `<td class="chkcol"></td>
         <td><input type="date" class="e-date" value="${r.date}" style="width:130px"></td>
+        <td><b>${r.worker}</b></td>
         <td><select class="e-item">${itemOptionsHtml(r.item)}</select></td>
         <td><input type="number" step="0.01" class="e-qty" value="${r.qty}" style="width:90px;text-align:right"></td>
         <td><input type="text" class="e-remarks" value="${(r.remarks||'').replace(/"/g,'&quot;')}" style="width:100%">
@@ -1107,7 +1158,7 @@ function renderIssueLog(){
         </td>`;
     } else {
       tr.innerHTML = `<td class="chkcol"><input type="checkbox" class="isRowChk" value="${r.id}"></td>
-        <td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
+        <td>${r.date}</td><td><span class="cat-pill">${r.worker}</span></td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
     }
     tbody.appendChild(tr);
   });
@@ -1123,7 +1174,7 @@ function renderIssueLog(){
     const entry = issues.find(r=>r.id===id);
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingIssueId = null;
-    queueSave(); renderIssueLog(); renderDashboard();
+    queueSave(); renderIssueLog(); if (!isAdmin) renderDashboard();
   }));
   $('isSelectAll').checked = false;
   if (window._refreshisBtns) window._refreshisBtns();
@@ -1223,7 +1274,7 @@ async function saveOilStandardsFromUI(){
   setStatus('saving','Saving standards…');
   try{
     await saveOilStandards(standards);
-    setStatus(null,'Saved to Drive');
+    setStatus(null,'Saved to Drive (Live)');
     updateOilRecoverySummary();
   }catch(e){ setStatus('off','Standards save failed'); console.error(e); }
 }
@@ -1253,12 +1304,11 @@ function findOrEntry(list, year, month){
   return (list||[]).find(e=> e.year===year && e.month===month);
 }
 
-// Pichle mahine ka Closing Balance nikalne ka helper function
 function getPrevOilClosing(list, year, month) {
   const prevMonth = month === 1 ? 12 : month - 1;
   const prevYear = month === 1 ? year - 1 : year;
   const prevEntry = findOrEntry(list, prevYear, prevMonth);
-  if (!prevEntry) return { fresh: 0, bnc: 0, reclaim: 0 };
+  if (!prevEntry) return null;
 
   const calcClose = (o) => (num(o.opening) + num(o.received) - num(o.issuedTF) - num(o.issuedDist) - num(o.issuedOther));
   return {
@@ -1288,7 +1338,7 @@ function isEntryLockedByTime(entry){
   return diffDays > 7;
 }
 
-function fillOilFormFromEntry(entry, editable){
+function fillOilFormFromEntry(entry, editable, isAutoCarryForward = false){
   OIL_CAPACITIES.forEach(cap=>{
     const repVal = entry.tfRepaired[cap];
     const dtcVal = entry.tfDTC[cap];
@@ -1307,6 +1357,14 @@ function fillOilFormFromEntry(entry, editable){
     $(id).value = val ? val : '';
     $(id).disabled = !editable;
   });
+
+  // STRICT REQUIREMENT: Opening balance is ONLY editable if there is no previous month entry.
+  if (isAutoCarryForward) {
+    $('orFreshOpen').disabled = true;
+    $('orBncOpen').disabled = true;
+    $('orReclaimOpen').disabled = true;
+  }
+
   updateOilBalanceClosing();
   updateOilRecoverySummary();
 }
@@ -1379,22 +1437,26 @@ function renderOilRecoveryPanel(){
     noteWrap.style.display = 'none';
     let entry = findOrEntry(oilRecovery, year, month);
     const prevClose = getPrevOilClosing(oilRecovery, year, month);
+    let isAutoCarryForward = false;
 
-    if (!entry) {
-      entry = emptyOrEntry(year, month);
+    if (prevClose !== null) {
+      isAutoCarryForward = true;
+      if (!entry) {
+        entry = emptyOrEntry(year, month);
+      }
       entry.oil.fresh.opening = prevClose.fresh;
       entry.oil.bnc.opening = prevClose.bnc;
       entry.oil.reclaim.opening = prevClose.reclaim;
-    } else if (!entry.savedAt) {
-      entry.oil.fresh.opening = prevClose.fresh;
-      entry.oil.bnc.opening = prevClose.bnc;
-      entry.oil.reclaim.opening = prevClose.reclaim;
+    } else {
+      if (!entry) {
+        entry = emptyOrEntry(year, month);
+      }
     }
 
     const lockedByTime = isEntryLockedByTime(entry) && !isAdmin;
 
     if (lockedByTime) {
-      fillOilFormFromEntry(entry, false);
+      fillOilFormFromEntry(entry, false, isAutoCarryForward);
       $('orSaveBtn').style.display = 'none';
       $('orEditBtn').style.display = 'none';
       $('orLockStatus').textContent = '🔒 Ye entry 1 hafte (7 din) se purani hai aur lock ho chuki hai. Sirf XEN hi change kar sakte hain.';
@@ -1402,12 +1464,12 @@ function renderOilRecoveryPanel(){
     } else {
       const isSaved = !!entry.savedAt;
       const canEdit = isOilEditing || !isSaved;
-      fillOilFormFromEntry(entry, canEdit);
+      fillOilFormFromEntry(entry, canEdit, isAutoCarryForward);
       
       if (canEdit) {
         $('orSaveBtn').style.display = 'inline-block';
         $('orEditBtn').style.display = 'none';
-        $('orLockStatus').textContent = isSaved ? '✏️ Editing Mode Enabled' : 'Nai Entry (Opening Balance Carry-Forwarded)';
+        $('orLockStatus').textContent = isAutoCarryForward ? 'Opening Balance Auto Carry-Forwarded (Read-Only)' : 'Pehli Entry: Initial Opening Balance Bharein';
         $('orLockStatus').style.color = 'var(--green)';
       } else {
         $('orSaveBtn').style.display = 'none';
@@ -1425,7 +1487,7 @@ function renderOilRecoveryPanel(){
       OIL_CAPACITIES.forEach(cap=>{ merged.tfRepaired[cap]+=num(e.tfRepaired[cap]); merged.tfDTC[cap]+=num(e.tfDTC[cap]); });
       ['fresh','bnc','reclaim'].forEach(k=>{ Object.keys(merged.oil[k]).forEach(f=> merged.oil[k][f]+= num((e.oil[k]||{})[f])); });
     });
-    fillOilFormFromEntry(merged, false);
+    fillOilFormFromEntry(merged, false, true);
     $('orSaveBtn').style.display = 'none';
     $('orEditBtn').style.display = 'none';
     $('orLockStatus').textContent = '';
@@ -1434,7 +1496,7 @@ function renderOilRecoveryPanel(){
     noteWrap.style.display='block';
     note.textContent = w ? `Read-only — ${w.label} ki entry dekh rahe hain.` : 'Worker data load ho raha hai…';
     const entry = w ? (findOrEntry(w.oilRecovery, year, month) || emptyOrEntry(year, month)) : emptyOrEntry(year, month);
-    fillOilFormFromEntry(entry, false);
+    fillOilFormFromEntry(entry, false, true);
     $('orSaveBtn').style.display = 'none';
     $('orEditBtn').style.display = 'none';
     $('orLockStatus').textContent = '';
@@ -1459,9 +1521,16 @@ function exportDashboardExcel(){
 }
 
 function exportReceiveExcel(){
-  const rows = [['Date', 'Item Name (Size)', 'Qty (KG)', 'Supplier / Remarks']];
-  receives.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
-    rows.push([r.date, r.item, r.qty, r.remarks || '']);
+  const rows = [['Date', 'Workshop / Worker', 'Item Name (Size)', 'Qty (KG)', 'Supplier / Remarks']];
+  let list = [];
+  if (isAdmin && compiledWorkers.length > 0) {
+    compiledWorkers.forEach(w => (w.receives || []).forEach(r => list.push({ ...r, worker: w.label })));
+  } else {
+    list = receives.map(r => ({ ...r, worker: userName || 'My Entry' }));
+  }
+
+  list.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+    rows.push([r.date, r.worker, r.item, r.qty, r.remarks || '']);
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -1470,14 +1539,39 @@ function exportReceiveExcel(){
 }
 
 function exportIssueExcel(){
-  const rows = [['Date', 'Item Name (Size)', 'Qty (KG)', 'Issued To / Remarks']];
-  issues.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
-    rows.push([r.date, r.item, r.qty, r.remarks || '']);
+  const rows = [['Date', 'Workshop / Worker', 'Item Name (Size)', 'Qty (KG)', 'Issued To / Remarks']];
+  let list = [];
+  if (isAdmin && compiledWorkers.length > 0) {
+    compiledWorkers.forEach(w => (w.issues || []).forEach(r => list.push({ ...r, worker: w.label })));
+  } else {
+    list = issues.map(r => ({ ...r, worker: userName || 'My Entry' }));
+  }
+
+  list.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+    rows.push([r.date, r.worker, r.item, r.qty, r.remarks || '']);
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Issue Log');
   XLSX.writeFile(wb, `Issue_Log_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportCombinedReceiveIssueExcel(){
+  const recRows = [['Date', 'Workshop / Worker', 'Item Name (Size)', 'Qty (KG)', 'Supplier / Remarks']];
+  const isRows = [['Date', 'Workshop / Worker', 'Item Name (Size)', 'Qty (KG)', 'Issued To / Remarks']];
+
+  compiledWorkers.forEach(w => {
+    (w.receives || []).forEach(r => recRows.push([r.date, w.label, r.item, r.qty, r.remarks || '']));
+    (w.issues || []).forEach(r => isRows.push([r.date, w.label, r.item, r.qty, r.remarks || '']));
+  });
+
+  const wb = XLSX.utils.book_new();
+  const wsRec = XLSX.utils.aoa_to_sheet(recRows);
+  const wsIs = XLSX.utils.aoa_to_sheet(isRows);
+
+  XLSX.utils.book_append_sheet(wb, wsRec, 'All Receive Entries');
+  XLSX.utils.book_append_sheet(wb, wsIs, 'All Issue Entries');
+  XLSX.writeFile(wb, `Combined_Receive_Issue_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 function exportCombinedExcel(){
