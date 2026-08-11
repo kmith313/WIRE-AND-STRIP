@@ -179,6 +179,16 @@
 
     <!-- ITEM MASTER -->
     <div class="panel" id="panel-master">
+      <div class="card app-hidden" id="addItemCard">
+        <h2>Add New Item (Admin Only)</h2>
+        <div class="row">
+          <div class="field"><label>Category</label><input type="text" id="newItemCategory" placeholder="e.g. OIL" style="width:140px"></div>
+          <div class="field" style="min-width:240px"><label>Item Name (Size)</label><input type="text" id="newItemName" placeholder="e.g. GEAR OIL 90W"></div>
+          <div class="field"><label>Unit</label><input type="text" id="newItemUnit" placeholder="KG / LTR" style="width:100px"></div>
+          <button class="btn green" id="addItemBtn">+ Add Item</button>
+        </div>
+        <div class="note">Yahan se add kiya gaya item turant sabhi workers ko dikhne lagega.</div>
+      </div>
       <div class="card">
         <h2>Item Master — Sizes &amp; Initial Opening Balance</h2>
         <div class="yellow-hint">Initial Opening Balance sirf <b>ek baar</b> bharein. Uske baad balance apne aap carry-forward hoga.</div>
@@ -206,7 +216,7 @@
       <div class="card">
         <h2>Receive Log</h2>
         <div class="table-scroll">
-          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
+          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th><th></th></tr></thead>
           <tbody id="recTableBody"></tbody></table>
         </div>
       </div>
@@ -227,7 +237,7 @@
       <div class="card">
         <h2>Issue Log</h2>
         <div class="table-scroll">
-          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
+          <table><thead><tr><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th><th></th></tr></thead>
           <tbody id="isTableBody"></tbody></table>
         </div>
       </div>
@@ -271,7 +281,7 @@
    1) ONE-TIME CONFIG — paste your own Google OAuth Client ID here
    ========================================================= */
 const CLIENT_ID = "933740281356-2gf56thakcjdprj45n93nsc3dl2353bk.apps.googleusercontent.com";
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const APP_FOLDER_NAME = "Wire Strip Dashboard";
 // Paste a shared Google Drive folder ID here to enable the "All Workers Combined" view.
 // Leave empty to keep every worker's data fully separate (personal folders, no combined view).
@@ -451,18 +461,71 @@ async function ensureFolderAndFile(){
 
   if (SHARED_FOLDER_ID && userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase()){
     $('combinedTab').classList.remove('app-hidden');
+    $('addItemCard').classList.remove('app-hidden');
   }
 }
 
 async function loadFromDrive(){
-  if (!fileId) return;
+  let savedOpenings = {};
+  if (fileId){
+    try{
+      const r = await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`);
+      const data = await r.json();
+      (data.itemMaster||[]).forEach(it=>{ savedOpenings[it.name] = num(it.opening); });
+      if (data.receives) receives = data.receives;
+      if (data.issues) issues = data.issues;
+    }catch(e){ console.warn('Load failed, starting fresh', e); }
+  }
+
+  // Merge the base item list with any items the admin has added, keeping
+  // this worker's own previously-saved opening balances.
+  let allItems = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit}));
+  if (SHARED_FOLDER_ID){
+    const customItems = await loadCustomItems();
+    customItems.forEach(ci=>{
+      if (!allItems.some(x=>x.name===ci.name)) allItems.push(ci);
+    });
+  }
+  itemMaster = allItems.map(it => ({ ...it, opening: savedOpenings[it.name] || 0 }));
+}
+
+/* ---------------- Shared item list (admin can add new items) ---------------- */
+const CUSTOM_ITEMS_FILE = "custom_items.json";
+let customItemsFileId = null;
+
+async function loadCustomItems(){
+  if (!SHARED_FOLDER_ID) return [];
   try{
-    const r = await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`);
-    const data = await r.json();
-    if (data.itemMaster) itemMaster = data.itemMaster;
-    if (data.receives) receives = data.receives;
-    if (data.issues) issues = data.issues;
-  }catch(e){ console.warn('Load failed, starting fresh', e); }
+    const q = encodeURIComponent(`name='${CUSTOM_ITEMS_FILE}' and '${SHARED_FOLDER_ID}' in parents and trashed=false`);
+    const res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
+    if (res.files && res.files.length){
+      customItemsFileId = res.files[0].id;
+      const r = await driveFetch(`${DRIVE_API}/files/${customItemsFileId}?alt=media`);
+      const list = await r.json();
+      return Array.isArray(list) ? list : [];
+    }
+  }catch(e){ console.warn('Could not load custom items', e); }
+  return [];
+}
+
+async function saveCustomItems(list){
+  if (!SHARED_FOLDER_ID) return;
+  const payload = JSON.stringify(list);
+  const metadata = { name: CUSTOM_ITEMS_FILE, parents: customItemsFileId ? undefined : [SHARED_FOLDER_ID] };
+  const boundary = 'wsboundary2';
+  const body =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
+  if (customItemsFileId){
+    await driveFetch(`${DRIVE_UPLOAD}/files/${customItemsFileId}?uploadType=multipart`, {
+      method:'PATCH', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
+    });
+  } else {
+    const created = await (await driveFetch(`${DRIVE_UPLOAD}/files?uploadType=multipart`, {
+      method:'POST', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
+    })).json();
+    customItemsFileId = created.id;
+  }
 }
 
 async function saveToDrive(){
@@ -566,6 +629,29 @@ function initUI(){
     });
   }
 
+  if (!$('addItemCard').classList.contains('app-hidden')){
+    $('addItemBtn').addEventListener('click', async () => {
+      const category = $('newItemCategory').value.trim().toUpperCase();
+      const name = $('newItemName').value.trim().toUpperCase();
+      const unit = $('newItemUnit').value.trim().toUpperCase();
+      if (!category || !name || !unit){ alert('Category, Item Name aur Unit teeno zaroori hain.'); return; }
+      if (itemMaster.some(it=>it.name===name)){ alert('Ye item pehle se list me hai.'); return; }
+      setStatus('saving', 'Adding item…');
+      try{
+        const existingCustom = await loadCustomItems();
+        existingCustom.push({ category, name, unit });
+        await saveCustomItems(existingCustom);
+        itemMaster.push({ category, name, unit, opening: 0 });
+        fillItemSelect($('lookupItem')); fillItemSelect($('recItem')); fillItemSelect($('isItem'));
+        renderMaster(); renderDashboard();
+        $('newItemCategory').value=''; $('newItemName').value=''; $('newItemUnit').value='';
+        setStatus(null, 'Saved to Drive');
+      }catch(e){
+        setStatus('off', 'Add item failed'); console.error(e);
+      }
+    });
+  }
+
   $('recAddBtn').addEventListener('click', () => {
     const date=$('recDate').value, item=$('recItem').value, qty=$('recQty').value, remarks=$('recRemarks').value;
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
@@ -603,6 +689,33 @@ function computeStats(itemName, year, month, data){
   return { opening, received, issued, closing: opening+received-issued };
 }
 
+function renderStockTable(tbodyId, year, month, data){
+  const tbody = $(tbodyId); tbody.innerHTML = '';
+  let tOpen=0,tRecv=0,tIssue=0,tClose=0;
+  const categories = [];
+  itemMaster.forEach(it=>{ if(!categories.includes(it.category)) categories.push(it.category); });
+  categories.forEach(cat=>{
+    let cOpen=0,cRecv=0,cIssue=0,cClose=0;
+    itemMaster.filter(it=>it.category===cat).forEach(it=>{
+      const s = computeStats(it.name, year, month, data);
+      cOpen+=s.opening; cRecv+=s.received; cIssue+=s.issued; cClose+=s.closing;
+      tOpen+=s.opening; tRecv+=s.received; tIssue+=s.issued; tClose+=s.closing;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
+        <td class="num">${fmt(s.opening)}</td><td class="num">${fmt(s.received)}</td>
+        <td class="num">${fmt(s.issued)}</td><td class="num" style="font-weight:700${s.closing<0?';color:#b3452f':''}">${fmt(s.closing)}</td>`;
+      tbody.appendChild(tr);
+    });
+    const subtr = document.createElement('tr');
+    subtr.style.background = 'var(--steel-light)';
+    subtr.innerHTML = `<td colspan="3" style="font-weight:700;color:var(--navy-2)">${cat} — Sub Total</td>
+      <td class="num" style="font-weight:700">${fmt(cOpen)}</td><td class="num" style="font-weight:700">${fmt(cRecv)}</td>
+      <td class="num" style="font-weight:700">${fmt(cIssue)}</td><td class="num" style="font-weight:700">${fmt(cClose)}</td>`;
+    tbody.appendChild(subtr);
+  });
+  return { tOpen, tRecv, tIssue, tClose };
+}
+
 function renderDashboard(){
   const month = parseInt($('dbMonth').value,10), year = parseInt($('dbYear').value,10);
   $('periodLabel').textContent = MONTHS[month-1] + ' ' + year;
@@ -612,19 +725,9 @@ function renderDashboard(){
     $('stOpen').textContent = fmt(s.opening); $('stRecv').textContent = fmt(s.received);
     $('stIssue').textContent = fmt(s.issued); $('stClose').textContent = fmt(s.closing);
   }
-  const tbody = $('fullTableBody'); tbody.innerHTML = '';
-  let tOpen=0,tRecv=0,tIssue=0,tClose=0;
-  itemMaster.forEach(it=>{
-    const s = computeStats(it.name, year, month);
-    tOpen+=s.opening; tRecv+=s.received; tIssue+=s.issued; tClose+=s.closing;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
-      <td class="num">${fmt(s.opening)}</td><td class="num">${fmt(s.received)}</td>
-      <td class="num">${fmt(s.issued)}</td><td class="num" style="font-weight:700${s.closing<0?';color:#b3452f':''}">${fmt(s.closing)}</td>`;
-    tbody.appendChild(tr);
-  });
-  $('totOpen').textContent=fmt(tOpen); $('totRecv').textContent=fmt(tRecv);
-  $('totIssue').textContent=fmt(tIssue); $('totClose').textContent=fmt(tClose);
+  const t = renderStockTable('fullTableBody', year, month);
+  $('totOpen').textContent=fmt(t.tOpen); $('totRecv').textContent=fmt(t.tRecv);
+  $('totIssue').textContent=fmt(t.tIssue); $('totClose').textContent=fmt(t.tClose);
 }
 
 let compiledWorkers = [];
@@ -696,19 +799,9 @@ function renderCombined(){
     ? 'Combined Stock — All Workers Together'
     : 'Stock — ' + workerLabelFromFileName(selectedFile);
 
-  const tbody = $('cbTableBody'); tbody.innerHTML = '';
-  let tOpen=0,tRecv=0,tIssue=0,tClose=0;
-  itemMaster.forEach(it=>{
-    const s = computeStats(it.name, year, month, merged);
-    tOpen+=s.opening; tRecv+=s.received; tIssue+=s.issued; tClose+=s.closing;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
-      <td class="num">${fmt(s.opening)}</td><td class="num">${fmt(s.received)}</td>
-      <td class="num">${fmt(s.issued)}</td><td class="num" style="font-weight:700${s.closing<0?';color:#b3452f':''}">${fmt(s.closing)}</td>`;
-    tbody.appendChild(tr);
-  });
-  $('cbTotOpen').textContent=fmt(tOpen); $('cbTotRecv').textContent=fmt(tRecv);
-  $('cbTotIssue').textContent=fmt(tIssue); $('cbTotClose').textContent=fmt(tClose);
+  const t = renderStockTable('cbTableBody', year, month, merged);
+  $('cbTotOpen').textContent=fmt(t.tOpen); $('cbTotRecv').textContent=fmt(t.tRecv);
+  $('cbTotIssue').textContent=fmt(t.tIssue); $('cbTotClose').textContent=fmt(t.tClose);
 }
 
 function renderMaster(){
@@ -727,22 +820,77 @@ function renderMaster(){
   });
 }
 
+let editingReceiveId = null;
+let editingIssueId = null;
+
+function itemOptionsHtml(selected){
+  return itemMaster.map(it => `<option value="${it.name}" ${it.name===selected?'selected':''}>${it.name}</option>`).join('');
+}
+
 function renderReceiveLog(){
   const tbody = $('recTableBody'); tbody.innerHTML = '';
   receives.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
+    if (editingReceiveId === r.id){
+      tr.innerHTML = `<td><input type="date" class="e-date" value="${r.date}" style="width:130px"></td>
+        <td><select class="e-item">${itemOptionsHtml(r.item)}</select></td>
+        <td><input type="number" step="0.01" class="e-qty" value="${r.qty}" style="width:90px;text-align:right"></td>
+        <td><input type="text" class="e-remarks" value="${(r.remarks||'').replace(/"/g,'&quot;')}"></td>
+        <td style="white-space:nowrap"><button class="btn green" data-save="${r.id}">Save</button> <button class="btn ghost" data-cancel="${r.id}">Cancel</button></td>`;
+    } else {
+      tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>
+        <td><button class="btn ghost" data-edit="${r.id}" style="color:var(--navy);border-color:var(--navy)">Edit</button></td>`;
+    }
     tbody.appendChild(tr);
   });
+  tbody.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=>{ editingReceiveId = b.dataset.edit; renderReceiveLog(); }));
+  tbody.querySelectorAll('[data-cancel]').forEach(b=> b.addEventListener('click', ()=>{ editingReceiveId = null; renderReceiveLog(); }));
+  tbody.querySelectorAll('[data-save]').forEach(b=> b.addEventListener('click', ()=>{
+    const id = b.dataset.save;
+    const row = b.closest('tr');
+    const date = row.querySelector('.e-date').value;
+    const item = row.querySelector('.e-item').value;
+    const qty = num(row.querySelector('.e-qty').value);
+    const remarks = row.querySelector('.e-remarks').value;
+    if (!date || !item || qty<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
+    const entry = receives.find(r=>r.id===id);
+    if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
+    editingReceiveId = null;
+    queueSave(); renderReceiveLog(); renderDashboard();
+  }));
 }
 
 function renderIssueLog(){
   const tbody = $('isTableBody'); tbody.innerHTML = '';
   issues.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>`;
+    if (editingIssueId === r.id){
+      tr.innerHTML = `<td><input type="date" class="e-date" value="${r.date}" style="width:130px"></td>
+        <td><select class="e-item">${itemOptionsHtml(r.item)}</select></td>
+        <td><input type="number" step="0.01" class="e-qty" value="${r.qty}" style="width:90px;text-align:right"></td>
+        <td><input type="text" class="e-remarks" value="${(r.remarks||'').replace(/"/g,'&quot;')}"></td>
+        <td style="white-space:nowrap"><button class="btn green" data-save="${r.id}">Save</button> <button class="btn ghost" data-cancel="${r.id}">Cancel</button></td>`;
+    } else {
+      tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td class="num">${fmt(num(r.qty))}</td><td>${r.remarks||''}</td>
+        <td><button class="btn ghost" data-edit="${r.id}" style="color:var(--navy);border-color:var(--navy)">Edit</button></td>`;
+    }
     tbody.appendChild(tr);
   });
+  tbody.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=>{ editingIssueId = b.dataset.edit; renderIssueLog(); }));
+  tbody.querySelectorAll('[data-cancel]').forEach(b=> b.addEventListener('click', ()=>{ editingIssueId = null; renderIssueLog(); }));
+  tbody.querySelectorAll('[data-save]').forEach(b=> b.addEventListener('click', ()=>{
+    const id = b.dataset.save;
+    const row = b.closest('tr');
+    const date = row.querySelector('.e-date').value;
+    const item = row.querySelector('.e-item').value;
+    const qty = num(row.querySelector('.e-qty').value);
+    const remarks = row.querySelector('.e-remarks').value;
+    if (!date || !item || qty<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
+    const entry = issues.find(r=>r.id===id);
+    if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
+    editingIssueId = null;
+    queueSave(); renderIssueLog(); renderDashboard();
+  }));
 }
 </script>
 </body>
