@@ -36,6 +36,7 @@
   .user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);padding:6px 12px;border-radius:20px;font-size:12.5px;}
   .user-chip img{width:22px;height:22px;border-radius:50%;}
   .signout{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:6px 10px;font-size:11.5px;cursor:pointer;}
+  .signout:hover{background:rgba(255,255,255,0.15);}
   .install-btn{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;display:none;}
 
   /* ANIMATED GATE STYLES */
@@ -151,12 +152,13 @@
   <div class="topbar">
     <div>
       <h1>Wire &amp; Strip Stock Dashboard</h1>
-      <p>Opening + Received − Issued = Closing Balance &nbsp;|&nbsp; Real-time Sync Active</p>
+      <p>Opening + Received − Issued = Closing Balance &nbsp;|&nbsp; Auto Sync (3s)</p>
     </div>
     <div class="top-right">
       <button class="install-btn" id="installBtn">📲 Install App</button>
       <div id="signedOutBox"><div id="gsiBtn"></div></div>
       <div id="signedInBox" class="app-hidden" style="align-items:center;gap:10px;">
+        <button class="signout" id="manualSyncBtn" title="Click to refresh instantly">🔄 Refresh Data</button>
         <div class="save-indicator"><span class="dot" id="saveDot"></span><span id="saveText">Ready</span></div>
         <div class="user-chip"><img id="userPic" src="" alt=""><span id="userName"></span></div>
         <button class="signout" id="signOutBtn">Sign out</button>
@@ -534,6 +536,24 @@ $('signOutBtn').addEventListener('click', () => {
   $('signedOutBox').style.display = 'block';
 });
 
+// FULL SYNC FUNCTION (Used by Manual Refresh and Auto-Refresh)
+async function fullSyncData() {
+  if (!accessToken) return;
+  try {
+    await loadFromDrive();
+    if (SHARED_FOLDER_ID) {
+      await refreshCombined();
+    }
+    if (!isAdmin) renderDashboard();
+    renderReceiveLog();
+    renderIssueLog();
+    renderOilRecoveryPanel();
+    setStatus(null, 'Saved to Drive (Live 3s)');
+  } catch(e) {
+    console.error('Full sync error:', e);
+  }
+}
+
 async function afterSignedIn(){
   $('gate').classList.add('app-hidden');
   $('app').classList.remove('app-hidden');
@@ -541,18 +561,19 @@ async function afterSignedIn(){
   $('signedOutBox').style.display = 'none';
   setStatus('saving', 'Loading from Drive…');
   await ensureFolderAndFile();
-  await loadFromDrive();
+  await fullSyncData();
   initUI();
   
   // Real-time Update Sync loop (Every 3 Seconds)
-  if (SHARED_FOLDER_ID) {
-    if (autoSyncInterval) clearInterval(autoSyncInterval);
-    autoSyncInterval = setInterval(async () => {
-      await refreshCombined();
-    }, 3000);
-  }
+  if (autoSyncInterval) clearInterval(autoSyncInterval);
+  autoSyncInterval = setInterval(async () => {
+    // Only auto refresh if user is not currently editing an inline log row
+    if (!editingReceiveId && !editingIssueId && !isOilEditing) {
+      await fullSyncData();
+    }
+  }, 3000);
   
-  setStatus(null, 'Saved to Drive (Live)');
+  setStatus(null, 'Saved to Drive (Live 3s)');
 }
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
@@ -605,13 +626,12 @@ async function ensureFolderAndFile(){
   
   // XEN SPECIFIC CONFIGURATION: Hide Dashboard, Keep Receive/Issue Visible
   if (isAdmin){
-    $('tab-dashboard').classList.add('app-hidden'); // Hide Dashboard for XEN
-    $('tab-receive').classList.remove('app-hidden'); // Keep Receive Visible
-    $('tab-issue').classList.remove('app-hidden');   // Keep Issue Visible
+    $('tab-dashboard').classList.add('app-hidden'); 
+    $('tab-receive').classList.remove('app-hidden'); 
+    $('tab-issue').classList.remove('app-hidden');   
     $('orStandardsCard').classList.remove('app-hidden');
     if (SHARED_FOLDER_ID) $('orViewWrap').classList.remove('app-hidden');
     
-    // Switch default active tab to Receive Entry for XEN
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
     $('tab-receive').classList.add('active');
@@ -747,7 +767,7 @@ async function saveToDrive(){
       })).json();
       fileId = created.id;
     }
-    setStatus(null, 'Saved to Drive (Live)');
+    setStatus(null, 'Saved to Drive (Live 3s)');
   }catch(e){
     setStatus('off', 'Save failed — retrying next edit');
     console.error(e);
@@ -783,6 +803,8 @@ function initUI(){
       $('panel-'+t.dataset.tab).classList.add('active');
     });
   });
+
+  $('manualSyncBtn').addEventListener('click', fullSyncData);
 
   const sel = $('dbMonth'); sel.innerHTML='';
   MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; sel.appendChild(o); });
@@ -843,7 +865,7 @@ function initUI(){
         fillItemSelect($('lookupItem')); fillItemSelect($('recItem')); fillItemSelect($('isItem'));
         renderMaster(); renderDashboard();
         $('newItemCategory').value=''; $('newItemName').value=''; $('newItemUnit').value='';
-        setStatus(null, 'Saved to Drive (Live)');
+        setStatus(null, 'Saved to Drive (Live 3s)');
       }catch(e){
         setStatus('off', 'Add item failed'); console.error(e);
       }
@@ -1181,7 +1203,7 @@ function renderIssueLog(){
 }
 
 /* =========================================================
-   OIL RECOVERY SHEET LOGIC & AUTOMATIC CARRY-FORWARD
+   OIL RECOVERY SHEET LOGIC & STRICT AUTOMATIC CARRY-FORWARD
    ========================================================= */
 function initOilRecoveryUI(){
   const sel = $('orMonth'); sel.innerHTML='';
@@ -1274,7 +1296,7 @@ async function saveOilStandardsFromUI(){
   setStatus('saving','Saving standards…');
   try{
     await saveOilStandards(standards);
-    setStatus(null,'Saved to Drive (Live)');
+    setStatus(null,'Saved to Drive (Live 3s)');
     updateOilRecoverySummary();
   }catch(e){ setStatus('off','Standards save failed'); console.error(e); }
 }
@@ -1304,17 +1326,28 @@ function findOrEntry(list, year, month){
   return (list||[]).find(e=> e.year===year && e.month===month);
 }
 
+// Finds the most recent available prior month entry and calculates its closing balance
 function getPrevOilClosing(list, year, month) {
-  const prevMonth = month === 1 ? 12 : month - 1;
-  const prevYear = month === 1 ? year - 1 : year;
-  const prevEntry = findOrEntry(list, prevYear, prevMonth);
-  if (!prevEntry) return null;
+  if (!list || !list.length) return null;
+  const currentKey = year * 12 + month;
+  let closestPrev = null;
+  let maxKey = -1;
+
+  list.forEach(e => {
+    const key = e.year * 12 + e.month;
+    if (key < currentKey && key > maxKey) {
+      maxKey = key;
+      closestPrev = e;
+    }
+  });
+
+  if (!closestPrev) return null;
 
   const calcClose = (o) => (num(o.opening) + num(o.received) - num(o.issuedTF) - num(o.issuedDist) - num(o.issuedOther));
   return {
-    fresh: calcClose(prevEntry.oil.fresh),
-    bnc: calcClose(prevEntry.oil.bnc),
-    reclaim: calcClose(prevEntry.oil.reclaim)
+    fresh: calcClose(closestPrev.oil.fresh),
+    bnc: calcClose(closestPrev.oil.bnc),
+    reclaim: calcClose(closestPrev.oil.reclaim)
   };
 }
 
@@ -1358,7 +1391,7 @@ function fillOilFormFromEntry(entry, editable, isAutoCarryForward = false){
     $(id).disabled = !editable;
   });
 
-  // STRICT REQUIREMENT: Opening balance is ONLY editable if there is no previous month entry.
+  // STRICT RULE: Opening balance is read-only if carry-forwarded from any previous month
   if (isAutoCarryForward) {
     $('orFreshOpen').disabled = true;
     $('orBncOpen').disabled = true;
@@ -1412,6 +1445,15 @@ function updateOilRecoverySummary(){
 async function saveOilRecoveryEntry(){
   const year = parseInt($('orYear').value,10), month = parseInt($('orMonth').value,10);
   const entry = readOilFormToEntry(year, month);
+  
+  // Ensure opening balance is strictly calculated from previous closing if prior data exists
+  const prevClose = getPrevOilClosing(oilRecovery, year, month);
+  if (prevClose !== null) {
+    entry.oil.fresh.opening = prevClose.fresh;
+    entry.oil.bnc.opening = prevClose.bnc;
+    entry.oil.reclaim.opening = prevClose.reclaim;
+  }
+
   entry.savedAt = new Date().toISOString();
   
   const idx = oilRecovery.findIndex(e=> e.year===year && e.month===month);
