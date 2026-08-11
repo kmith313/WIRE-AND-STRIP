@@ -55,7 +55,6 @@
     animation:shineText 4s linear infinite;
   }
   .gate-sub{color:var(--text-mute);font-size:14px;margin:0 0 18px 0;font-weight:600;}
-  .gate-desc{color:var(--text-mute);font-size:12.5px;margin:15px auto 0;line-height:1.5;}
 
   @keyframes floatCard {
     0% { transform: translateY(0px); box-shadow: 0 12px 35px rgba(22, 50, 74, 0.12); }
@@ -170,7 +169,6 @@
     <div class="gate-card">
       <h2 class="gate-title">EWD AZAMGARH</h2>
       <div class="gate-sub">Stock & Recovery Management System</div>
-      <p class="gate-desc">Apne Google account se sign in karein.<br>Har user ka data sirf unke apne Google Drive me save hota hai.</p>
     </div>
   </div>
 
@@ -269,6 +267,7 @@
         <div class="rowbtns">
           <button class="btn outline small" id="recEditSelBtn" disabled>✏️ Edit Selected</button>
           <button class="btn red small" id="recDelSelBtn" disabled>🗑 Delete Selected</button>
+          <button class="btn outline small" id="recExportBtn">⬇ Download Excel</button>
         </div>
         <div class="table-scroll">
           <table><thead><tr><th class="chkcol"><input type="checkbox" id="recSelectAll"></th><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
@@ -294,6 +293,7 @@
         <div class="rowbtns">
           <button class="btn outline small" id="isEditSelBtn" disabled>✏️ Edit Selected</button>
           <button class="btn red small" id="isDelSelBtn" disabled>🗑 Delete Selected</button>
+          <button class="btn outline small" id="isExportBtn">⬇ Download Excel</button>
         </div>
         <div class="table-scroll">
           <table><thead><tr><th class="chkcol"><input type="checkbox" id="isSelectAll"></th><th>Date</th><th>Item Name (Size)</th><th style="text-align:right">Qty (KG)</th><th>Remarks</th></tr></thead>
@@ -784,6 +784,9 @@ function initUI(){
   $('dbExportBtn').addEventListener('click', exportDashboardExcel);
   $('cbExportBtn') && $('cbExportBtn').addEventListener('click', exportCombinedExcel);
 
+  $('recExportBtn') && $('recExportBtn').addEventListener('click', exportReceiveExcel);
+  $('isExportBtn') && $('isExportBtn').addEventListener('click', exportIssueExcel);
+
   if (SHARED_FOLDER_ID){
     const cbSel = $('cbMonth'); cbSel.innerHTML='';
     MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; cbSel.appendChild(o); });
@@ -1127,7 +1130,7 @@ function renderIssueLog(){
 }
 
 /* =========================================================
-   OIL RECOVERY SHEET LOGIC & UPDATES
+   OIL RECOVERY SHEET LOGIC & AUTOMATIC CARRY-FORWARD
    ========================================================= */
 function initOilRecoveryUI(){
   const sel = $('orMonth'); sel.innerHTML='';
@@ -1225,7 +1228,6 @@ async function saveOilStandardsFromUI(){
   }catch(e){ setStatus('off','Standards save failed'); console.error(e); }
 }
 
-/* DEDUPLICATED OR VIEW OPTIONS FUNCTION */
 function populateOrViewOptions(){
   const sel = $('orView');
   if (!sel) return;
@@ -1236,7 +1238,6 @@ function populateOrViewOptions(){
   const myFile = myDataFileName();
 
   compiledWorkers.forEach(w=>{
-    // Current user ka entry pehle se "My Entry" hai, plus duplicate email labels ko drop karein
     if (w.fileName !== myFile && !seenLabels.has(w.label)) {
       seenLabels.add(w.label);
       const o = document.createElement('option');
@@ -1250,6 +1251,21 @@ function populateOrViewOptions(){
 
 function findOrEntry(list, year, month){
   return (list||[]).find(e=> e.year===year && e.month===month);
+}
+
+// Pichle mahine ka Closing Balance nikalne ka helper function
+function getPrevOilClosing(list, year, month) {
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevEntry = findOrEntry(list, prevYear, prevMonth);
+  if (!prevEntry) return { fresh: 0, bnc: 0, reclaim: 0 };
+
+  const calcClose = (o) => (num(o.opening) + num(o.received) - num(o.issuedTF) - num(o.issuedDist) - num(o.issuedOther));
+  return {
+    fresh: calcClose(prevEntry.oil.fresh),
+    bnc: calcClose(prevEntry.oil.bnc),
+    reclaim: calcClose(prevEntry.oil.reclaim)
+  };
 }
 
 function emptyOrEntry(year, month){
@@ -1361,7 +1377,20 @@ function renderOilRecoveryPanel(){
 
   if (view === '__mine__'){
     noteWrap.style.display = 'none';
-    const entry = findOrEntry(oilRecovery, year, month) || emptyOrEntry(year, month);
+    let entry = findOrEntry(oilRecovery, year, month);
+    const prevClose = getPrevOilClosing(oilRecovery, year, month);
+
+    if (!entry) {
+      entry = emptyOrEntry(year, month);
+      entry.oil.fresh.opening = prevClose.fresh;
+      entry.oil.bnc.opening = prevClose.bnc;
+      entry.oil.reclaim.opening = prevClose.reclaim;
+    } else if (!entry.savedAt) {
+      entry.oil.fresh.opening = prevClose.fresh;
+      entry.oil.bnc.opening = prevClose.bnc;
+      entry.oil.reclaim.opening = prevClose.reclaim;
+    }
+
     const lockedByTime = isEntryLockedByTime(entry) && !isAdmin;
 
     if (lockedByTime) {
@@ -1378,7 +1407,7 @@ function renderOilRecoveryPanel(){
       if (canEdit) {
         $('orSaveBtn').style.display = 'inline-block';
         $('orEditBtn').style.display = 'none';
-        $('orLockStatus').textContent = isSaved ? '✏️ Editing Mode Enabled' : 'Nai Entry';
+        $('orLockStatus').textContent = isSaved ? '✏️ Editing Mode Enabled' : 'Nai Entry (Opening Balance Carry-Forwarded)';
         $('orLockStatus').style.color = 'var(--green)';
       } else {
         $('orSaveBtn').style.display = 'none';
@@ -1427,6 +1456,28 @@ function exportDashboardExcel(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Stock');
   XLSX.writeFile(wb, `Wire_Strip_Stock_${from}_to_${to}.xlsx`);
+}
+
+function exportReceiveExcel(){
+  const rows = [['Date', 'Item Name (Size)', 'Qty (KG)', 'Supplier / Remarks']];
+  receives.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+    rows.push([r.date, r.item, r.qty, r.remarks || '']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Receive Log');
+  XLSX.writeFile(wb, `Receive_Log_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportIssueExcel(){
+  const rows = [['Date', 'Item Name (Size)', 'Qty (KG)', 'Issued To / Remarks']];
+  issues.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(r=>{
+    rows.push([r.date, r.item, r.qty, r.remarks || '']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Issue Log');
+  XLSX.writeFile(wb, `Issue_Log_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 function exportCombinedExcel(){
