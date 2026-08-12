@@ -476,6 +476,35 @@
         </div>
         <div class="note" id="orCalcNote" style="margin-top:14px;font-size:13px;color:var(--navy);font-weight:700"></div>
       </div>
+
+      <!-- DATE RANGE SUMMARY: sums every month's data between From & To dates,
+           while Opening Balance always stays fixed to whichever month was picked in "From". -->
+      <div class="card" id="orRangeCard">
+        <h2>📅 Date Range Summary <span style="font-weight:500;font-size:12.5px;color:var(--text-mute)">— From/To me koi bhi date range chunein, sara data jud kar dikhega</span></h2>
+        <div class="note" id="orRangeNote" style="margin-bottom:12px"></div>
+        <div class="cardgrid">
+          <div class="stat blue"><div class="lbl">Total TF Repaired (NOS)</div><div class="val" id="orRngRepaired">0</div></div>
+          <div class="stat blue"><div class="lbl">Total TF DTC (NOS)</div><div class="val" id="orRngDtc">0</div></div>
+          <div class="stat green"><div class="lbl">Total Oil Received (LTR)</div><div class="val" id="orRngReceived">0.00</div></div>
+          <div class="stat amber"><div class="lbl">Total Oil Used / Issued (LTR)</div><div class="val" id="orRngIssued">0.00</div></div>
+        </div>
+        <div class="table-scroll" style="margin-top:16px">
+          <table class="oilbal-table">
+            <thead><tr><th></th><th style="text-align:right">Fresh Oil</th><th style="text-align:right">B&amp;C Oil</th><th style="text-align:right">Reclaim Oil</th><th style="text-align:right">Total</th></tr></thead>
+            <tbody>
+              <tr><td>Opening Balance <span style="font-weight:400;color:var(--text-mute)">(From month)</span></td>
+                <td class="num" id="orRngFreshOpen">0.00</td><td class="num" id="orRngBncOpen">0.00</td><td class="num" id="orRngReclaimOpen">0.00</td><td class="num" id="orRngTotOpen">0.00</td></tr>
+              <tr><td>Total Received (in range)</td>
+                <td class="num" id="orRngFreshRecv">0.00</td><td class="num" id="orRngBncRecv">0.00</td><td class="num" id="orRngReclaimRecv">0.00</td><td class="num" id="orRngTotRecv">0.00</td></tr>
+              <tr><td>Total Issued (in range)</td>
+                <td class="num" id="orRngFreshIss">0.00</td><td class="num" id="orRngBncIss">0.00</td><td class="num" id="orRngReclaimIss">0.00</td><td class="num" id="orRngTotIss">0.00</td></tr>
+              <tr style="font-weight:700"><td>Closing Balance <span style="font-weight:400;color:var(--text-mute)">(To month end)</span></td>
+                <td class="num" id="orRngFreshClose">0.00</td><td class="num" id="orRngBncClose">0.00</td><td class="num" id="orRngReclaimClose">0.00</td><td class="num" id="orRngTotClose">0.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note" id="orRngCalcNote" style="margin-top:14px;font-size:13px;color:var(--navy);font-weight:700"></div>
+      </div>
     </div>
 
     <!-- ALL WORKERS COMBINED -->
@@ -1485,6 +1514,7 @@ async function saveOilStandardsFromUI(){
     await saveOilStandards(standards);
     setStatus(null,'Saved to Drive (Live 3s)');
     updateOilRecoverySummary();
+    renderOilRangeSummary();
   }catch(e){ setStatus('off','Standards save failed'); console.error(e); }
 }
 
@@ -1511,6 +1541,127 @@ function populateOrViewOptions(){
 
 function findOrEntry(list, year, month){
   return (list||[]).find(e=> e.year===year && e.month===month);
+}
+
+function monthKey(y,m){ return y*12+m; }
+
+// Opening balance strictly for a given year/month: use its saved entry's opening
+// if present, else fall back to the auto carry-forward from the nearest prior month.
+function getOilOpeningAt(list, year, month){
+  const entry = findOrEntry(list, year, month);
+  if (entry){
+    return { fresh:num(entry.oil.fresh.opening), bnc:num(entry.oil.bnc.opening), reclaim:num(entry.oil.reclaim.opening) };
+  }
+  const prevClose = getPrevOilClosing(list, year, month);
+  if (prevClose) return prevClose;
+  return { fresh:0, bnc:0, reclaim:0 };
+}
+
+// Sums every month's entry between From & To (inclusive) — DTC, Repair, Oil
+// Received, Oil Used — while Opening Balance always stays fixed to the "From" month.
+function aggregateOilRange(list, fromV, toV){
+  const std = oilStandards || DEFAULT_OIL_STANDARDS;
+  const result = {
+    repaired:0, dtc:0,
+    freshRecv:0, bncRecv:0, reclaimRecv:0,
+    freshIss:0, bncIss:0, reclaimIss:0,
+    consume:0, recovered:0,
+    opening:{fresh:0,bnc:0,reclaim:0},
+    monthsCount:0
+  };
+  if (!fromV || !toV) return result;
+  const fd = new Date(fromV), td = new Date(toV);
+  if (isNaN(fd) || isNaN(td)) return result;
+  const fy = fd.getFullYear(), fm = fd.getMonth()+1;
+  const ty = td.getFullYear(), tm = td.getMonth()+1;
+  const fromKeyV = monthKey(fy,fm), toKeyV = monthKey(ty,tm);
+
+  result.opening = getOilOpeningAt(list, fy, fm);
+
+  (list||[]).forEach(e=>{
+    const k = monthKey(e.year, e.month);
+    if (k < fromKeyV || k > toKeyV) return;
+    result.monthsCount++;
+    OIL_CAPACITIES.forEach(cap=>{
+      const rep = num(e.tfRepaired[cap]), dtc = num(e.tfDTC[cap]);
+      result.repaired += rep; result.dtc += dtc;
+      const stdConsume = num(std.consumption[cap]), dtcPct = num(std.dtcPercent[cap]);
+      result.consume += rep*stdConsume;
+      result.recovered += dtc*(stdConsume*dtcPct/100);
+    });
+    result.freshRecv += num(e.oil.fresh.received);
+    result.bncRecv += num(e.oil.bnc.received);
+    result.reclaimRecv += num(e.oil.reclaim.received);
+    result.freshIss += num(e.oil.fresh.issuedTF)+num(e.oil.fresh.issuedDist)+num(e.oil.fresh.issuedOther);
+    result.bncIss += num(e.oil.bnc.issuedTF)+num(e.oil.bnc.issuedDist)+num(e.oil.bnc.issuedOther);
+    result.reclaimIss += num(e.oil.reclaim.issuedTF)+num(e.oil.reclaim.issuedDist)+num(e.oil.reclaim.issuedOther);
+  });
+  return result;
+}
+
+// Returns the oilRecovery entry list relevant to the currently selected view
+// (My Entry / a specific worker / All Workers Combined).
+function getOilListForCurrentView(){
+  const view = (isAdmin && $('orView')) ? $('orView').value : '__mine__';
+  if (view === '__mine__') return oilRecovery;
+  if (view === '__all__'){
+    const map = {};
+    compiledWorkers.forEach(w=>{
+      (w.oilRecovery||[]).forEach(e=>{
+        const k = e.year+'-'+e.month;
+        if (!map[k]) map[k] = emptyOrEntry(e.year, e.month);
+        const m = map[k];
+        OIL_CAPACITIES.forEach(cap=>{ m.tfRepaired[cap]+=num(e.tfRepaired[cap]); m.tfDTC[cap]+=num(e.tfDTC[cap]); });
+        ['fresh','bnc','reclaim'].forEach(t=>{ Object.keys(m.oil[t]).forEach(f=> m.oil[t][f]+= num((e.oil[t]||{})[f])); });
+      });
+    });
+    return Object.values(map);
+  }
+  const w = compiledWorkers.find(x=>x.fileName===view);
+  return w ? (w.oilRecovery||[]) : [];
+}
+
+function renderOilRangeSummary(){
+  const fromV = $('orFrom').value, toV = $('orTo').value;
+  const list = getOilListForCurrentView();
+  const r = aggregateOilRange(list, fromV, toV);
+
+  $('orRangeNote').textContent = (fromV && toV)
+    ? `Period: ${fromV} → ${toV}  |  ${r.monthsCount} mahine ka data joda gaya hai`
+    : 'From aur To date choose karein.';
+
+  $('orRngRepaired').textContent = r.repaired;
+  $('orRngDtc').textContent = r.dtc;
+  const totRecv = r.freshRecv + r.bncRecv + r.reclaimRecv;
+  const totIss = r.freshIss + r.bncIss + r.reclaimIss;
+  $('orRngReceived').textContent = fmt(totRecv);
+  $('orRngIssued').textContent = fmt(totIss);
+
+  $('orRngFreshOpen').textContent = fmt(r.opening.fresh);
+  $('orRngBncOpen').textContent = fmt(r.opening.bnc);
+  $('orRngReclaimOpen').textContent = fmt(r.opening.reclaim);
+  const totOpen = r.opening.fresh + r.opening.bnc + r.opening.reclaim;
+  $('orRngTotOpen').textContent = fmt(totOpen);
+
+  $('orRngFreshRecv').textContent = fmt(r.freshRecv);
+  $('orRngBncRecv').textContent = fmt(r.bncRecv);
+  $('orRngReclaimRecv').textContent = fmt(r.reclaimRecv);
+  $('orRngTotRecv').textContent = fmt(totRecv);
+
+  $('orRngFreshIss').textContent = fmt(r.freshIss);
+  $('orRngBncIss').textContent = fmt(r.bncIss);
+  $('orRngReclaimIss').textContent = fmt(r.reclaimIss);
+  $('orRngTotIss').textContent = fmt(totIss);
+
+  const freshClose = r.opening.fresh + r.freshRecv - r.freshIss;
+  const bncClose = r.opening.bnc + r.bncRecv - r.bncIss;
+  const reclaimClose = r.opening.reclaim + r.reclaimRecv - r.reclaimIss;
+  $('orRngFreshClose').textContent = fmt(freshClose);
+  $('orRngBncClose').textContent = fmt(bncClose);
+  $('orRngReclaimClose').textContent = fmt(reclaimClose);
+  $('orRngTotClose').textContent = fmt(freshClose + bncClose + reclaimClose);
+
+  $('orRngCalcNote').textContent = `Oil Consumed as per Standard = ${fmt(r.consume)} LTR  |  Oil Recovered as per Standard = ${fmt(r.recovered)} LTR`;
 }
 
 // Finds the most recent available prior month entry and calculates its closing balance
@@ -1730,6 +1881,8 @@ function renderOilRecoveryPanel(){
     $('orEditBtn').style.display = 'none';
     $('orLockStatus').textContent = '';
   }
+
+  renderOilRangeSummary();
 }
 
 /* =========================================================
