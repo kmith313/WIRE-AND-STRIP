@@ -482,21 +482,30 @@
       <div class="card" id="orRangeCard">
         <h2>📅 Date Range Summary <span style="font-weight:500;font-size:12.5px;color:var(--text-mute)">— From/To me koi bhi date range chunein, sara data jud kar dikhega</span></h2>
         <div class="note" id="orRangeNote" style="margin-bottom:12px"></div>
-        <div class="cardgrid">
+
+        <h3 style="margin:18px 0 0;font-size:14px;color:var(--navy)">Total Transformer Repaired — Capacity Wise (Range Sum)</h3>
+        <div class="orsheet-grid" id="orRngRepairedGrid"></div>
+
+        <h3 style="margin:18px 0 0;font-size:14px;color:var(--navy)">Total Transformer DTC — Capacity Wise (Range Sum)</h3>
+        <div class="orsheet-grid" id="orRngDtcGrid"></div>
+
+        <div class="cardgrid" style="margin-top:18px">
           <div class="stat blue"><div class="lbl">Total TF Repaired (NOS)</div><div class="val" id="orRngRepaired">0</div></div>
           <div class="stat blue"><div class="lbl">Total TF DTC (NOS)</div><div class="val" id="orRngDtc">0</div></div>
           <div class="stat green"><div class="lbl">Total Oil Received (LTR)</div><div class="val" id="orRngReceived">0.00</div></div>
           <div class="stat amber"><div class="lbl">Total Oil Used / Issued (LTR)</div><div class="val" id="orRngIssued">0.00</div></div>
         </div>
-        <div class="table-scroll" style="margin-top:16px">
+
+        <h3 style="margin:22px 0 0;font-size:14px;color:var(--navy)">Oil Balance (LTR) — Range Sum</h3>
+        <div class="table-scroll" style="margin-top:10px">
           <table class="oilbal-table">
             <thead><tr><th></th><th style="text-align:right">Fresh Oil</th><th style="text-align:right">B&amp;C Oil</th><th style="text-align:right">Reclaim Oil</th><th style="text-align:right">Total</th></tr></thead>
             <tbody>
               <tr><td>Opening Balance <span style="font-weight:400;color:var(--text-mute)">(From month)</span></td>
                 <td class="num" id="orRngFreshOpen">0.00</td><td class="num" id="orRngBncOpen">0.00</td><td class="num" id="orRngReclaimOpen">0.00</td><td class="num" id="orRngTotOpen">0.00</td></tr>
-              <tr><td>Total Received (in range)</td>
+              <tr><td>Received During Month</td>
                 <td class="num" id="orRngFreshRecv">0.00</td><td class="num" id="orRngBncRecv">0.00</td><td class="num" id="orRngReclaimRecv">0.00</td><td class="num" id="orRngTotRecv">0.00</td></tr>
-              <tr><td>Total Issued (in range)</td>
+              <tr><td>Issued for TF Repairing / Dist. / Other</td>
                 <td class="num" id="orRngFreshIss">0.00</td><td class="num" id="orRngBncIss">0.00</td><td class="num" id="orRngReclaimIss">0.00</td><td class="num" id="orRngTotIss">0.00</td></tr>
               <tr style="font-weight:700"><td>Closing Balance <span style="font-weight:400;color:var(--text-mute)">(To month end)</span></td>
                 <td class="num" id="orRngFreshClose">0.00</td><td class="num" id="orRngBncClose">0.00</td><td class="num" id="orRngReclaimClose">0.00</td><td class="num" id="orRngTotClose">0.00</td></tr>
@@ -1561,8 +1570,10 @@ function getOilOpeningAt(list, year, month){
 // Received, Oil Used — while Opening Balance always stays fixed to the "From" month.
 function aggregateOilRange(list, fromV, toV){
   const std = oilStandards || DEFAULT_OIL_STANDARDS;
+  const zCap = {}; OIL_CAPACITIES.forEach(c=> zCap[c]=0);
   const result = {
     repaired:0, dtc:0,
+    repairedByCap: Object.assign({}, zCap), dtcByCap: Object.assign({}, zCap),
     freshRecv:0, bncRecv:0, reclaimRecv:0,
     freshIss:0, bncIss:0, reclaimIss:0,
     consume:0, recovered:0,
@@ -1585,6 +1596,7 @@ function aggregateOilRange(list, fromV, toV){
     OIL_CAPACITIES.forEach(cap=>{
       const rep = num(e.tfRepaired[cap]), dtc = num(e.tfDTC[cap]);
       result.repaired += rep; result.dtc += dtc;
+      result.repairedByCap[cap] += rep; result.dtcByCap[cap] += dtc;
       const stdConsume = num(std.consumption[cap]), dtcPct = num(std.dtcPercent[cap]);
       result.consume += rep*stdConsume;
       result.recovered += dtc*(stdConsume*dtcPct/100);
@@ -1621,6 +1633,16 @@ function getOilListForCurrentView(){
   return w ? (w.oilRecovery||[]) : [];
 }
 
+function buildReadonlyCapacityGrid(gridId, prefix){
+  const grid = $(gridId); if (!grid) return;
+  grid.innerHTML = '';
+  OIL_CAPACITIES.forEach(cap=>{
+    const div = document.createElement('div'); div.className='cell';
+    div.innerHTML = `<label>${cap} KVA</label><input type="number" id="${prefix}_${cap}" value="0" disabled>`;
+    grid.appendChild(div);
+  });
+}
+
 function renderOilRangeSummary(){
   const fromV = $('orFrom').value, toV = $('orTo').value;
   const list = getOilListForCurrentView();
@@ -1629,6 +1651,14 @@ function renderOilRangeSummary(){
   $('orRangeNote').textContent = (fromV && toV)
     ? `Period: ${fromV} → ${toV}  |  ${r.monthsCount} mahine ka data joda gaya hai`
     : 'From aur To date choose karein.';
+
+  if (!$('orRngRepairedGrid').children.length) buildReadonlyCapacityGrid('orRngRepairedGrid','orRngRep');
+  if (!$('orRngDtcGrid').children.length) buildReadonlyCapacityGrid('orRngDtcGrid','orRngDtc');
+  OIL_CAPACITIES.forEach(cap=>{
+    const repEl = $('orRngRep_'+cap), dtcEl = $('orRngDtc_'+cap);
+    if (repEl) repEl.value = r.repairedByCap[cap] || 0;
+    if (dtcEl) dtcEl.value = r.dtcByCap[cap] || 0;
+  });
 
   $('orRngRepaired').textContent = r.repaired;
   $('orRngDtc').textContent = r.dtc;
