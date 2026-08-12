@@ -250,6 +250,16 @@
     <div class="gate-card">
       <h2 class="gate-title">EWD AZAMGARH</h2>
       <div class="gate-sub">Stock & Recovery Management System</div>
+      <div id="iosWarnBox" class="app-hidden" style="text-align:left;background:var(--amber-light);border-left:3px solid var(--amber);padding:12px 14px;border-radius:8px;font-size:12.5px;color:#7a4514;margin-top:10px;line-height:1.6;">
+        <b>⚠️ iPhone par Sign-In nahi ho raha?</b><br>
+        Google, Home Screen par install ki gayi app (icon se khola hua) ke andar Sign-In allow nahi karta — security restriction hai, ye is app ki galti nahi hai.<br><br>
+        <b>Fix:</b> Home Screen icon se mat kholiye. Iske bajaye <b>Safari app</b> mein seedha ye link kholiye aur wahin se Sign-In karein:
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          <button class="btn small" id="copyLinkBtn" type="button">🔗 Link Copy Karein</button>
+        </div>
+        <div style="margin-top:6px;font-size:11.5px;">Ek baar Safari mein sign in ho jaye, uske baad Home Screen icon se app dobara istemal kar sakte hain.</div>
+      </div>
+      <div id="gsiErrBox" class="app-hidden" style="text-align:left;background:var(--red-light);border-left:3px solid var(--red);padding:10px 14px;border-radius:8px;font-size:12.5px;color:#8f371f;margin-top:10px;"></div>
     </div>
   </div>
 
@@ -565,7 +575,45 @@ function setStatus(state, text){
 }
 
 let tokenClient;
+
+// ===== iOS "Add to Home Screen" detection =====
+// Google explicitly blocks Sign-In inside embedded/standalone WebViews (incl. iOS
+// home-screen PWAs). This shows the popup for a split second, then silently
+// bounces back — which is exactly the symptom of "popup khulke wapas aa jaata hai".
+function isIOSDevice(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+function isStandaloneMode(){
+  return (window.navigator.standalone === true) ||
+         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+function showIOSWarningIfNeeded(){
+  if (isIOSDevice() && isStandaloneMode()){
+    const box = $('iosWarnBox');
+    if (box) box.classList.remove('app-hidden');
+  }
+}
+function showGsiError(msg){
+  const box = $('gsiErrBox');
+  if (!box) return;
+  box.textContent = msg;
+  box.classList.remove('app-hidden');
+}
+const copyBtn = document.getElementById('copyLinkBtn');
+if (copyBtn){
+  copyBtn.addEventListener('click', async ()=>{
+    try{
+      await navigator.clipboard.writeText(window.location.href);
+      copyBtn.textContent = '✅ Copied! Ab Safari mein paste karein';
+      setTimeout(()=> copyBtn.textContent = '🔗 Link Copy Karein', 3000);
+    }catch(e){
+      alert(window.location.href);
+    }
+  });
+}
+
 window.addEventListener('load', () => {
+  showIOSWarningIfNeeded();
   if (!window.google || CLIENT_ID.startsWith("PASTE_")) {
     $('gate').innerHTML = '<h2>Setup baaki hai</h2><p>index.html me CLIENT_ID abhi tak nahi bhara gaya.</p>';
     return;
@@ -574,7 +622,8 @@ window.addEventListener('load', () => {
     client_id: CLIENT_ID,
     callback: handleCredentialResponse,
     auto_select: true,
-    cancel_on_tap_outside: false
+    cancel_on_tap_outside: false,
+    itp_support: true
   });
   google.accounts.id.renderButton($('gsiBtn'), { theme: 'filled_blue', size: 'large', text: 'signin_with' });
 
@@ -582,16 +631,32 @@ window.addEventListener('load', () => {
     client_id: CLIENT_ID,
     scope: DRIVE_SCOPE,
     callback: async (resp) => {
-      if (resp.error) { setStatus('off','Sign-in failed'); return; }
+      if (resp.error) {
+        setStatus('off','Sign-in failed');
+        showIOSWarningIfNeeded();
+        showGsiError('Sign-in poora nahi hua (' + resp.error + '). Agar aap Home Screen icon se app khol rahe hain, upar diya gaya fix try karein.');
+        return;
+      }
       accessToken = resp.access_token;
       await afterSignedIn();
+    },
+    error_callback: (err) => {
+      setStatus('off','Sign-in failed');
+      showIOSWarningIfNeeded();
+      showGsiError('Sign-in popup band ho gaya bina complete hue. Agar aap Home Screen icon se app khol rahe hain, ye Google ka security restriction hai — upar diya gaya fix try karein.');
+      console.error('GSI token error:', err);
     }
   });
 
   if (localStorage.getItem('ws_last_signed_in') === '1'){
-    google.accounts.id.prompt();
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment() || notification.isDismissedMoment()){
+        showIOSWarningIfNeeded();
+      }
+    });
   }
 });
+
 
 function handleCredentialResponse(response){
   try{
@@ -637,6 +702,8 @@ async function fullSyncData() {
 }
 
 async function afterSignedIn(){
+  $('gsiErrBox') && $('gsiErrBox').classList.add('app-hidden');
+  $('iosWarnBox') && $('iosWarnBox').classList.add('app-hidden');
   $('gate').classList.add('app-hidden');
   $('app').classList.remove('app-hidden');
   $('signedInBox').style.display = 'flex';
