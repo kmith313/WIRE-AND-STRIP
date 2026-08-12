@@ -235,7 +235,10 @@
     </div>
     <div class="top-right">
       <button class="install-btn" id="installBtn">📲 Install App</button>
-      <div id="signedOutBox"><div id="gsiBtn"></div></div>
+      <div id="signedOutBox"><button class="gbtn" id="gsiBtn" type="button">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.3-5.1l-6.6-5.6C29.7 35.9 27 37 24 37c-5.3 0-9.7-3.1-11.3-7.5l-6.6 5.1C9.6 40.6 16.3 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.8l6.6 5.6C40.7 36.6 45 30.9 45 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
+        Sign in with Google
+      </button></div>
       <div id="signedInBox" class="app-hidden" style="align-items:center;gap:10px;">
         <button class="signout" id="manualSyncBtn" title="Click to refresh instantly">🔄 Refresh Data</button>
         <div class="save-indicator"><span class="dot" id="saveDot"></span><span id="saveText">Ready</span></div>
@@ -510,7 +513,7 @@
 
 <script>
 const CLIENT_ID = "933740281356-2gf56thakcjdprj45n93nsc3dl2353bk.apps.googleusercontent.com";
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
 const APP_FOLDER_NAME = "Wire Strip Dashboard";
 const SHARED_FOLDER_ID = "1MplJLID09SaPw46UPwqntpWr4QILUWu4";
 const ADMIN_EMAIL = "xen.workshopazamgarh@puvvnl.in";
@@ -618,14 +621,6 @@ window.addEventListener('load', () => {
     $('gate').innerHTML = '<h2>Setup baaki hai</h2><p>index.html me CLIENT_ID abhi tak nahi bhara gaya.</p>';
     return;
   }
-  google.accounts.id.initialize({
-    client_id: CLIENT_ID,
-    callback: handleCredentialResponse,
-    auto_select: true,
-    cancel_on_tap_outside: false,
-    itp_support: true
-  });
-  google.accounts.id.renderButton($('gsiBtn'), { theme: 'filled_blue', size: 'large', text: 'signin_with' });
 
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
@@ -633,49 +628,49 @@ window.addEventListener('load', () => {
     callback: async (resp) => {
       if (resp.error) {
         setStatus('off','Sign-in failed');
-        showIOSWarningIfNeeded();
-        showGsiError('Sign-in poora nahi hua (' + resp.error + '). Agar aap Home Screen icon se app khol rahe hain, upar diya gaya fix try karein.');
+        showGsiError('Sign-in poora nahi hua (' + resp.error + '). Dobara "Sign in with Google" button dabayein.');
         return;
       }
       accessToken = resp.access_token;
+      $('gsiErrBox') && $('gsiErrBox').classList.add('app-hidden');
+      try{
+        const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: 'Bearer ' + accessToken }
+        });
+        const info = await r.json();
+        userEmail = info.email;
+        userName = info.name || info.email;
+        $('userName').textContent = userName;
+        $('userPic').src = info.picture || '';
+      }catch(e){ console.error('userinfo fetch failed', e); }
+      localStorage.setItem('ws_last_signed_in', '1');
       await afterSignedIn();
     },
     error_callback: (err) => {
       setStatus('off','Sign-in failed');
       showIOSWarningIfNeeded();
-      showGsiError('Sign-in popup band ho gaya bina complete hue. Agar aap Home Screen icon se app khol rahe hain, ye Google ka security restriction hai — upar diya gaya fix try karein.');
+      showGsiError('Sign-in popup band ho gaya bina complete hue. Agar aap Home Screen icon se app khol rahe hain, ye Google ka security restriction hai — upar diya gaya fix try karein. Warna, dobara button dabayein.');
       console.error('GSI token error:', err);
     }
   });
 
-  if (localStorage.getItem('ws_last_signed_in') === '1'){
-    google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment() || notification.isDismissedMoment()){
-        showIOSWarningIfNeeded();
-      }
+  // Sign-in must be triggered directly from a real, synchronous button tap —
+  // Safari silently blocks OAuth popups opened indirectly (e.g. from inside
+  // another async callback), which was causing the popup to flash and bounce back.
+  const signInBtn = $('gsiBtn');
+  if (signInBtn){
+    signInBtn.addEventListener('click', () => {
+      $('gsiErrBox') && $('gsiErrBox').classList.add('app-hidden');
+      tokenClient.requestAccessToken({ prompt: 'consent' });
     });
   }
 });
-
-
-function handleCredentialResponse(response){
-  try{
-    const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    userEmail = payload.email;
-    userName = payload.name || payload.email;
-    $('userName').textContent = userName;
-    $('userPic').src = payload.picture || '';
-  }catch(e){}
-  localStorage.setItem('ws_last_signed_in', '1');
-  tokenClient.requestAccessToken({ prompt: '' });
-}
 
 $('signOutBtn').addEventListener('click', () => {
   if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
   if (autoSyncInterval) clearInterval(autoSyncInterval);
   accessToken = null; fileId = null; folderId = null;
   localStorage.removeItem('ws_last_signed_in');
-  google.accounts.id.disableAutoSelect();
   $('app').classList.add('app-hidden');
   $('gate').classList.remove('app-hidden');
   $('signedInBox').style.display = 'none';
