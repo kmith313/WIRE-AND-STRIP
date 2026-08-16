@@ -133,17 +133,8 @@
   .btn.outline:hover{background:var(--steel-light);}
   .rowbtns{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
   th.chkcol,td.chkcol{width:34px;text-align:center;padding:8px 4px;}
-  .orsheet-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px;}
-  .orsheet-grid .cell{display:flex;flex-direction:column;gap:4px;}
-  .orsheet-grid .cell label{font-size:10.5px;color:var(--text-mute);font-weight:700;text-transform:uppercase;}
-  .orsheet-grid .cell input{width:100%;text-align:right;}
-  @media(max-width:800px){.orsheet-grid{grid-template-columns:repeat(3,1fr);}}
-  .oilbal-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
-  .oilbal-table th{background:var(--steel-light);color:var(--navy);padding:8px;font-size:11.5px;text-transform:uppercase;}
-  .oilbal-table td{padding:6px 8px;border-bottom:1px solid var(--line);}
-  .oilbal-table td input{width:100%;text-align:right;}
-  .readonly-note{background:var(--steel-light);color:var(--navy-2);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;}
-  .admin-badge{font-size:10px;background:var(--amber);color:#fff;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px;}
+  .import-box{width:100%;font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical;}
+  .import-box:focus{outline:2px solid var(--amber);outline-offset:1px;}
 
   /* ===== ACTION TOAST NOTIFICATIONS ===== */
   #toastStack{
@@ -274,7 +265,6 @@
       <div class="tab" data-tab="master">Item Master</div>
       <div class="tab" id="tab-receive" data-tab="receive">Receive Entry</div>
       <div class="tab" id="tab-issue" data-tab="issue">Issue Entry</div>
-      <div class="tab" data-tab="oilrecovery">Oil Recovery Sheet</div>
       <div class="tab app-hidden" id="combinedTab" data-tab="combined">All Workers Combined</div>
     </div>
 
@@ -326,15 +316,47 @@
       <div class="card app-hidden" id="addItemCard">
         <h2>Add New Item (Admin Only)</h2>
         <div class="row">
-          <div class="field"><label>Category</label><input type="text" id="newItemCategory" placeholder="e.g. OIL" style="width:140px"></div>
-          <div class="field" style="min-width:240px"><label>Item Name (Size)</label><input type="text" id="newItemName" placeholder="e.g. GEAR OIL 90W"></div>
+          <div class="field"><label>Category</label><input type="text" id="newItemCategory" placeholder="e.g. WIRE" style="width:140px"></div>
+          <div class="field" style="min-width:240px"><label>Item Name (Size)</label><input type="text" id="newItemName" placeholder="e.g. DPC ALUM. STRIP 9X4 MM"></div>
           <div class="field"><label>Unit</label><input type="text" id="newItemUnit" placeholder="KG / LTR" style="width:100px"></div>
           <button class="btn green" id="addItemBtn">+ Add Item</button>
         </div>
       </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">⚙️ Wire &amp; Strip Repair Standards — Capacity Wise</h2>
+          <button class="btn outline small" id="wsStdUnlockBtn" type="button">🔓 Change STD</button>
+        </div>
+        <div class="yellow-hint">Ye standard values sabhi workers ki calculation me common hoti hain. Badalne ke liye pehle upar <b>"Change STD"</b> button dabayein, tabhi values edit ho sakti hain.</div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Capacity (KVA)</th><th style="text-align:right">Strip Standard (KG)</th><th style="text-align:right">Wire Standard (KG)</th></tr></thead>
+            <tbody id="wsStdTableBody"></tbody>
+          </table>
+        </div>
+        <div class="row" style="margin-top:12px;align-items:center;gap:10px">
+          <button class="btn green app-hidden" id="wsStdSaveBtn" type="button">💾 Save Standard</button>
+          <span class="note" id="wsStdStatus" style="margin:0">🔒 Locked — badalne ke liye "Change STD" dabayein.</span>
+        </div>
+        <div class="note" style="margin-top:12px;line-height:1.6">
+          <b>Note:</b> According to std. wire strip can be used (85%).<br>
+          It can be increase if old wire and strip are not used.
+        </div>
+      </div>
+      <div class="card">
+        <h2>📋 Paste from Excel — Bulk Import</h2>
+        <div class="yellow-hint">Apne Excel sheet se seedha rows copy karke (Ctrl+C) yahan neeche paste karein (Ctrl+V), phir <b>Import</b> dabayein. Format: <b>Category&nbsp;&nbsp;Item Name&nbsp;&nbsp;Unit&nbsp;&nbsp;Opening Balance</b> (Tab ya Comma se alag columns) — ya sirf <b>Item Name&nbsp;&nbsp;Opening Balance</b> bhi chalega, jo item pehle se list me hoga uska balance update ho jayega.</div>
+        <textarea id="pasteImportBox" class="import-box" rows="6" placeholder="STRIP&#9;DPC ALUM. STRIP 7.1X4.1MM&#9;KG&#9;283&#10;WIRE&#9;SE ALUM. WIRE 19 SWG&#9;KG&#9;1696.95"></textarea>
+        <div class="row" style="margin-top:10px;align-items:center">
+          <button class="btn green" id="pasteImportBtn" type="button">📥 Import Pasted Data</button>
+          <span class="note" id="pasteImportStatus" style="margin:0"></span>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Item Master — Sizes &amp; Initial Opening Balance</h2>
-        <div class="yellow-hint">Initial Opening Balance sirf <b>ek baar</b> bharein. Uske baad balance apne aap carry-forward hoga.</div>
+        <div class="yellow-hint">Initial Opening Balance sirf <b>ek baar</b> bharein. Uske baad balance apne aap carry-forward hoga. Ya upar diye gaye "Paste from Excel" box se ek saath sab bhar sakte hain.</div>
         <div class="table-scroll" style="max-height:560px">
           <table>
             <thead><tr><th>Category</th><th>Item Name (Size)</th><th>Unit</th><th style="text-align:right">Initial Opening Balance</th></tr></thead>
@@ -397,125 +419,6 @@
       </div>
     </div>
 
-    <!-- OIL RECOVERY SHEET -->
-    <div class="panel" id="panel-oilrecovery">
-      <div class="card">
-        <h2>Select Period / Date Range</h2>
-        <div class="row">
-          <div class="field"><label>Month</label><select id="orMonth"></select></div>
-          <div class="field"><label>Year</label><input type="number" id="orYear" min="2020" max="2100" style="width:100px"></div>
-          <div class="field"><label>From Date</label><input type="date" id="orFrom"></div>
-          <div class="field"><label>To Date</label><input type="date" id="orTo"></div>
-          <div class="field app-hidden" id="orViewWrap" style="min-width:220px"><label>View</label><select id="orView"><option value="__mine__">My Entry</option></select></div>
-          <button class="btn outline" id="orExportBtn">⬇ Download Excel</button>
-          <div class="period-line">Showing: <b id="orPeriodLabel">—</b></div>
-        </div>
-      </div>
-
-      <!-- COLLAPSIBLE STANDARDS CARD -->
-      <div class="card app-hidden" id="orStandardsCard">
-        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" id="orStdToggleHeader">
-          <h2 style="margin:0">Recovery Standards (Admin Only) <span class="admin-badge">XEN</span></h2>
-          <button class="btn small outline" id="orStdToggleBtn" type="button">▶ Show / Change Standards</button>
-        </div>
-        <div id="orStandardsBody" style="display:none;margin-top:14px">
-          <div class="note" style="margin-top:0 0 10px">Ye standard values sabhi workers ki calculation me use hoti hain. Sirf XEN hi inhe badal sakta hai.</div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th>Capacity</th><th style="text-align:right">Standard Oil Consumption (LTR)</th><th style="text-align:right">DTC Oil Recovery %</th></tr></thead>
-              <tbody id="orStdTableBody"></tbody>
-            </table>
-          </div>
-          <div class="row" style="margin-top:12px"><button class="btn green" id="orStdSaveBtn">💾 Save Standards</button></div>
-        </div>
-      </div>
-
-      <div class="card" id="orReadonlyNoteWrap" style="display:none">
-        <div class="readonly-note" id="orReadonlyNote"></div>
-      </div>
-
-      <div class="card">
-        <h2>Total Transformer Repaired — NOS Entry</h2>
-        <div class="orsheet-grid" id="orRepairedGrid"></div>
-      </div>
-
-      <div class="card">
-        <h2>Total Transformer DTC — NOS Entry</h2>
-        <div class="orsheet-grid" id="orDtcGrid"></div>
-      </div>
-
-      <div class="card">
-        <h2>Oil Balance (LTR)</h2>
-        <div class="yellow-hint" id="orOpenHint">Opening balance sirf pehli entry me bharein. Uske baad yeh apne aap Carry-Forward hoga.</div>
-        <table class="oilbal-table">
-          <thead><tr><th></th><th style="text-align:right">Fresh Oil</th><th style="text-align:right">B&amp;C Oil</th><th style="text-align:right">Reclaim Oil</th></tr></thead>
-          <tbody>
-            <tr><td>Opening Balance</td><td><input type="number" step="0.01" id="orFreshOpen" placeholder="0"></td><td><input type="number" step="0.01" id="orBncOpen" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimOpen" placeholder="0"></td></tr>
-            <tr><td>Received During Month</td><td><input type="number" step="0.01" id="orFreshRecv" placeholder="0"></td><td><input type="number" step="0.01" id="orBncRecv" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimRecv" placeholder="0"></td></tr>
-            <tr><td>Issued for TF Repairing</td><td><input type="number" step="0.01" id="orFreshIssTF" placeholder="0"></td><td><input type="number" step="0.01" id="orBncIssTF" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimIssTF" placeholder="0"></td></tr>
-            <tr><td>Issued to Dist. Division</td><td><input type="number" step="0.01" id="orFreshIssDist" placeholder="0"></td><td><input type="number" step="0.01" id="orBncIssDist" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimIssDist" placeholder="0"></td></tr>
-            <tr><td>Issued to Other Workshop / B&amp;C Oil Issue for Reclaim</td><td><input type="number" step="0.01" id="orFreshIssOther" placeholder="0"></td><td><input type="number" step="0.01" id="orBncIssOther" placeholder="0"></td><td><input type="number" step="0.01" id="orReclaimIssOther" placeholder="0"></td></tr>
-            <tr style="font-weight:700"><td>Closing Balance</td><td class="num" id="orFreshClose">0.00</td><td class="num" id="orBncClose">0.00</td><td class="num" id="orReclaimClose">0.00</td></tr>
-          </tbody>
-        </table>
-        
-        <div class="row" style="margin-top:14px;gap:10px;align-items:center">
-          <button class="btn green" id="orSaveBtn">💾 Save Entry</button>
-          <button class="btn outline" id="orEditBtn">✏️ Edit Entry</button>
-          <span id="orLockStatus" style="font-size:12px;font-weight:600;color:var(--text-mute)"></span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Calculated Summary</h2>
-        <div class="cardgrid">
-          <div class="stat blue"><div class="lbl">Total TF Repaired (NOS)</div><div class="val" id="orTotRepairedNos">0</div></div>
-          <div class="stat amber"><div class="lbl">Consume as per Standard</div><div class="val" id="orTotConsume">0.00</div></div>
-          <div class="stat blue"><div class="lbl">Total TF DTC (NOS)</div><div class="val" id="orTotDtcNos">0</div></div>
-          <div class="stat green"><div class="lbl">Oil Recovered as per Standard</div><div class="val" id="orTotRecovered">0.00</div></div>
-        </div>
-        <div class="note" id="orCalcNote" style="margin-top:14px;font-size:13px;color:var(--navy);font-weight:700"></div>
-      </div>
-
-      <!-- DATE RANGE SUMMARY: sums every month's data between From & To dates,
-           while Opening Balance always stays fixed to whichever month was picked in "From". -->
-      <div class="card" id="orRangeCard">
-        <h2>📅 Date Range Summary <span style="font-weight:500;font-size:12.5px;color:var(--text-mute)">— From/To me koi bhi date range chunein, sara data jud kar dikhega</span></h2>
-        <div class="note" id="orRangeNote" style="margin-bottom:12px"></div>
-
-        <h3 style="margin:18px 0 0;font-size:14px;color:var(--navy)">Total Transformer Repaired — Capacity Wise (Range Sum)</h3>
-        <div class="orsheet-grid" id="orRngRepairedGrid"></div>
-
-        <h3 style="margin:18px 0 0;font-size:14px;color:var(--navy)">Total Transformer DTC — Capacity Wise (Range Sum)</h3>
-        <div class="orsheet-grid" id="orRngDtcGrid"></div>
-
-        <div class="cardgrid" style="margin-top:18px">
-          <div class="stat blue"><div class="lbl">Total TF Repaired (NOS)</div><div class="val" id="orRngRepaired">0</div></div>
-          <div class="stat blue"><div class="lbl">Total TF DTC (NOS)</div><div class="val" id="orRngDtc">0</div></div>
-          <div class="stat green"><div class="lbl">Total Oil Received (LTR)</div><div class="val" id="orRngReceived">0.00</div></div>
-          <div class="stat amber"><div class="lbl">Total Oil Used / Issued (LTR)</div><div class="val" id="orRngIssued">0.00</div></div>
-        </div>
-
-        <h3 style="margin:22px 0 0;font-size:14px;color:var(--navy)">Oil Balance (LTR) — Range Sum</h3>
-        <div class="table-scroll" style="margin-top:10px">
-          <table class="oilbal-table">
-            <thead><tr><th></th><th style="text-align:right">Fresh Oil</th><th style="text-align:right">B&amp;C Oil</th><th style="text-align:right">Reclaim Oil</th><th style="text-align:right">Total</th></tr></thead>
-            <tbody>
-              <tr><td>Opening Balance <span style="font-weight:400;color:var(--text-mute)">(From month)</span></td>
-                <td class="num" id="orRngFreshOpen">0.00</td><td class="num" id="orRngBncOpen">0.00</td><td class="num" id="orRngReclaimOpen">0.00</td><td class="num" id="orRngTotOpen">0.00</td></tr>
-              <tr><td>Received During Month</td>
-                <td class="num" id="orRngFreshRecv">0.00</td><td class="num" id="orRngBncRecv">0.00</td><td class="num" id="orRngReclaimRecv">0.00</td><td class="num" id="orRngTotRecv">0.00</td></tr>
-              <tr><td>Issued for TF Repairing / Dist. / Other</td>
-                <td class="num" id="orRngFreshIss">0.00</td><td class="num" id="orRngBncIss">0.00</td><td class="num" id="orRngReclaimIss">0.00</td><td class="num" id="orRngTotIss">0.00</td></tr>
-              <tr style="font-weight:700"><td>Closing Balance <span style="font-weight:400;color:var(--text-mute)">(To month end)</span></td>
-                <td class="num" id="orRngFreshClose">0.00</td><td class="num" id="orRngBncClose">0.00</td><td class="num" id="orRngReclaimClose">0.00</td><td class="num" id="orRngTotClose">0.00</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="note" id="orRngCalcNote" style="margin-top:14px;font-size:13px;color:var(--navy);font-weight:700"></div>
-      </div>
-    </div>
-
     <!-- ALL WORKERS COMBINED -->
     <div class="panel" id="panel-combined">
       <div class="card">
@@ -556,36 +459,38 @@ const APP_FOLDER_NAME = "Wire Strip Dashboard";
 const SHARED_FOLDER_ID = "1MplJLID09SaPw46UPwqntpWr4QILUWu4";
 const ADMIN_EMAIL = "xen.workshopazamgarh@puvvnl.in";
 
+// Item list (Category, Name, Unit) taken directly from the
+// WIRE_AND_STRIP_CONSUMPTION_SAMPLE.xlsx (AZAMGARH sheet) supplied by XEN.
+// Opening Balance is intentionally NOT pre-filled here — it stays separate for
+// every worker; each person fills their own Initial Opening Balance once in the
+// Item Master tab, and after that "Received" always comes from whatever they
+// enter in the Receive Entry tab, month by month.
 const DEFAULT_ITEMS = [
-  ["DPC STRIP","DPC ALUM. STRIP 7.1X4.1MM","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 6.6X4.8 MM","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 7X3 MM","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 8X2.75 MM","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 7X4 MM","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 8X3.5MM","KG"],
-  ["DPC STRIP","D.P.C. STRIP (ALU) 10X4 M.M.","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 10X4.4MM","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 10.5X5.5 MM","KG"],
-  ["DPC STRIP","DPC ALUM. STRIP 11X5MM","KG"],
-  ["SE WIRE","SE ALLUMINIUM WIRE 17 SWG.","KG"],
-  ["SE WIRE","SE ALUM. WIRE 19 SWG","KG"],
-  ["SE WIRE","SE. ALUM. WINDING WIRE 16.5 SWG","KG"],
-  ["SE WIRE","SE. ALUM. WINDING WIRE 17.5 SWG","KG"],
-  ["SE WIRE","SUPER ENAMEL ALU. WIRE 16 SWG","KG"],
-  ["SE WIRE","SUPER ENAMEL ALU. WIRE 21 SWG.","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (ALU) 12.5 SWG.","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (ALU) 13 SWG.","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (ALU) 16 SWG.","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (ALU) 21 SWG.","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (COPPER) 13 SWG.","KG"],
-  ["D.P.C WIRE","DPC ALLUMINIUM WIRE 17.5 SWG","KG"],
-  ["D.P.C WIRE","DPC ALUM. WIRE 16.5 SWG","KG"],
-  ["D.P.C WIRE","DPC ALUM. WIRE 17 SWG","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (COPPER) 12.5 SWG.","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (ALU) 14 SWG.","KG"],
-  ["D.P.C WIRE","D.P.C. WIRE (CU) 14 SWG.","KG"],
-  ["OIL","FRESH OIL","LTR"],
-  ["OIL","RECLAIMED OIL","LTR"],
+  ["STRIP","DPC ALUM. STRIP 7.1X4.1MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 6.6X4.8 MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 7X3 MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 8X2.75 MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 7X4 MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 8X3.5MM","KG"],
+  ["STRIP","D.P.C. STRIP (ALU) 10X4 M.M.","KG"],
+  ["STRIP","DPC ALUM. STRIP 10X4.4MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 7.5X5.1 MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 10.5X5.5 MM","KG"],
+  ["STRIP","DPC ALUM. STRIP 11X5MM","KG"],
+  ["WIRE","SE ALUM. WIRE 19 SWG","KG"],
+  ["WIRE","SUPER ENAMEL ALU. WIRE 21 SWG.","KG"],
+  ["WIRE","D.P.C. WIRE (ALU) 21 SWG.","KG"],
+  ["WIRE","SE ALLUMINIUM WIRE 17 SWG.","KG"],
+  ["WIRE","SE. ALUM. WINDING WIRE 17.5 SWG","KG"],
+  ["WIRE","DPC ALUM. WIRE 17 SWG","KG"],
+  ["WIRE","DPC ALLUMINIUM WIRE 17.5 SWG","KG"],
+  ["WIRE","SUPER ENAMEL ALU. WIRE 16 SWG","KG"],
+  ["WIRE","SE. ALUM. WINDING WIRE 16.5 SWG","KG"],
+  ["WIRE","D.P.C. WIRE (ALU) 16 SWG.","KG"],
+  ["WIRE","DPC ALUM. WIRE 16.5 SWG","KG"],
+  ["WIRE","D.P.C. WIRE (ALU) 14 SWG.","KG"],
+  ["WIRE","D.P.C. WIRE (ALU) 12.5 SWG.","KG"],
+  ["WIRE","D.P.C. WIRE (ALU) 13 SWG.","KG"],
 ];
 
 let itemMaster = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit,opening:0}));
@@ -598,9 +503,6 @@ let userEmail = null;
 let userName = null;
 let saveTimer = null;
 let isAdmin = false;
-let oilRecovery = [];
-let oilStandards = null;
-let isOilEditing = false;
 let autoSyncInterval = null;
 let isSyncing = false;      // rok-ta hai overlapping sync calls ko
 let isRefreshingCombined = false; // rok-ta hai overlapping combined refresh ko
@@ -725,7 +627,10 @@ async function fullSyncData() {
     if (!isAdmin) renderDashboard();
     renderReceiveLog();
     renderIssueLog();
-    renderOilRecoveryPanel();
+    if (!isWsStdEditing){
+      wsStandards = await loadWsStandards();
+      renderWsStdTable(false);
+    }
     setStatus(null, 'Saved to Drive (Live 3s)');
   } catch(e) {
     console.error('Full sync error:', e);
@@ -750,7 +655,7 @@ async function afterSignedIn(){
   if (autoSyncInterval) clearInterval(autoSyncInterval);
   autoSyncInterval = setInterval(async () => {
     // Editing me na chhede, aur agar pichla sync abhi chal hi raha hai to skip (overlap hi instability ki wajah thi)
-    if (!editingReceiveId && !editingIssueId && !isOilEditing && !isSyncing) {
+    if (!editingReceiveId && !editingIssueId && !isWsStdEditing && !isSyncing) {
       await fullSyncData();
     }
   }, 3000);
@@ -811,8 +716,6 @@ async function ensureFolderAndFile(){
     $('tab-dashboard').classList.add('app-hidden'); 
     $('tab-receive').classList.remove('app-hidden'); 
     $('tab-issue').classList.remove('app-hidden');   
-    $('orStandardsCard').classList.remove('app-hidden');
-    if (SHARED_FOLDER_ID) $('orViewWrap').classList.remove('app-hidden');
     
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
@@ -830,10 +733,8 @@ async function loadFromDrive(){
       (data.itemMaster||[]).forEach(it=>{ savedOpenings[it.name] = num(it.opening); });
       if (data.receives) receives = data.receives;
       if (data.issues) issues = data.issues;
-      if (data.oilRecovery) oilRecovery = data.oilRecovery;
     }catch(e){ console.warn('Load failed', e); }
   }
-  oilStandards = await loadOilStandards();
 
   let allItems = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit}));
   if (SHARED_FOLDER_ID){
@@ -842,6 +743,9 @@ async function loadFromDrive(){
       if (!allItems.some(x=>x.name===ci.name)) allItems.push(ci);
     });
   }
+  // Opening Balance stays separate per worker — everyone fills their own once
+  // in the Item Master tab; "Received" always comes from that worker's own
+  // Receive Entry tab, month by month.
   itemMaster = allItems.map(it => ({ ...it, opening: savedOpenings[it.name] || 0 }));
 }
 
@@ -883,56 +787,115 @@ async function saveCustomItems(list){
   }
 }
 
-const OIL_STD_FILE = "oil_recovery_standards.json";
-let oilStdFileId = null;
-const OIL_CAPACITIES = [10,16,25,63,100,160,250,400,630,1000];
-const DEFAULT_OIL_STANDARDS = {
-  consumption: {10:40,16:50,25:90,63:150,100:190,160:220,250:380,400:480,630:650,1000:0},
-  dtcPercent:  {10:60,16:60,25:60,63:60,100:60,160:70,250:70,400:70,630:70,1000:0}
+/* =========================================================
+   WIRE & STRIP REPAIR STANDARDS (capacity-wise, per XEN's Excel)
+   Shared across everyone — unlocked for edit only after pressing
+   "Change STD", to avoid accidental changes.
+   ========================================================= */
+const WS_STD_FILE = "wire_strip_standards.json";
+let wsStdFileId = null;
+const WS_STD_CAPACITIES = [10,16,25,63,100,160,250];
+const DEFAULT_WS_STANDARDS = {
+  strip: {10:4, 16:9, 25:9, 63:18, 100:25, 160:30, 250:43},
+  wire:  {10:7, 16:11, 25:16, 63:32, 100:44, 160:55, 250:72}
 };
+let wsStandards = null;
+let isWsStdEditing = false;
 
-async function loadOilStandards(){
-  if (!SHARED_FOLDER_ID) return JSON.parse(JSON.stringify(DEFAULT_OIL_STANDARDS));
+async function loadWsStandards(){
+  if (!SHARED_FOLDER_ID) return JSON.parse(JSON.stringify(DEFAULT_WS_STANDARDS));
   try{
-    const q = encodeURIComponent(`name='${OIL_STD_FILE}' and '${SHARED_FOLDER_ID}' in parents and trashed=false`);
+    const q = encodeURIComponent(`name='${WS_STD_FILE}' and '${SHARED_FOLDER_ID}' in parents and trashed=false`);
     const res = await (await driveFetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`)).json();
     if (res.files && res.files.length){
-      oilStdFileId = res.files[0].id;
-      const r = await driveFetch(`${DRIVE_API}/files/${oilStdFileId}?alt=media`);
+      wsStdFileId = res.files[0].id;
+      const r = await driveFetch(`${DRIVE_API}/files/${wsStdFileId}?alt=media`);
       const data = await r.json();
       return {
-        consumption: Object.assign({}, DEFAULT_OIL_STANDARDS.consumption, data.consumption||{}),
-        dtcPercent: Object.assign({}, DEFAULT_OIL_STANDARDS.dtcPercent, data.dtcPercent||{})
+        strip: Object.assign({}, DEFAULT_WS_STANDARDS.strip, data.strip||{}),
+        wire: Object.assign({}, DEFAULT_WS_STANDARDS.wire, data.wire||{})
       };
     }
-  }catch(e){ console.warn('Could not load oil standards', e); }
-  return JSON.parse(JSON.stringify(DEFAULT_OIL_STANDARDS));
+  }catch(e){ console.warn('Could not load wire/strip standards', e); }
+  return JSON.parse(JSON.stringify(DEFAULT_WS_STANDARDS));
 }
 
-async function saveOilStandards(standards){
-  if (!SHARED_FOLDER_ID) { oilStandards = standards; return; }
+async function saveWsStandards(standards){
+  if (!SHARED_FOLDER_ID) { wsStandards = standards; return; }
   const payload = JSON.stringify(standards);
-  const metadata = { name: OIL_STD_FILE, parents: oilStdFileId ? undefined : [SHARED_FOLDER_ID] };
-  const boundary = 'wsboundary3';
+  const metadata = { name: WS_STD_FILE, parents: wsStdFileId ? undefined : [SHARED_FOLDER_ID] };
+  const boundary = 'wsboundary4';
   const body =
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
     `--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
-  if (oilStdFileId){
-    await driveFetch(`${DRIVE_UPLOAD}/files/${oilStdFileId}?uploadType=multipart`, {
+  if (wsStdFileId){
+    await driveFetch(`${DRIVE_UPLOAD}/files/${wsStdFileId}?uploadType=multipart`, {
       method:'PATCH', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
     });
   } else {
     const created = await (await driveFetch(`${DRIVE_UPLOAD}/files?uploadType=multipart`, {
       method:'POST', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
     })).json();
-    oilStdFileId = created.id;
+    wsStdFileId = created.id;
   }
-  oilStandards = standards;
+  wsStandards = standards;
 }
+
+function renderWsStdTable(editable){
+  const tbody = $('wsStdTableBody');
+  if (!tbody) return;
+  const std = wsStandards || DEFAULT_WS_STANDARDS;
+  tbody.innerHTML = '';
+  WS_STD_CAPACITIES.forEach(cap=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${cap} KVA</td>
+      <td><input type="number" step="0.01" id="wsStd_strip_${cap}" value="${std.strip[cap]||0}" style="width:110px;text-align:right" ${editable?'':'disabled'}></td>
+      <td><input type="number" step="0.01" id="wsStd_wire_${cap}" value="${std.wire[cap]||0}" style="width:110px;text-align:right" ${editable?'':'disabled'}></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function initWsStdUI(){
+  renderWsStdTable(false);
+  const unlockBtn = $('wsStdUnlockBtn');
+  const saveBtn = $('wsStdSaveBtn');
+  const status = $('wsStdStatus');
+  if (unlockBtn){
+    unlockBtn.addEventListener('click', ()=>{
+      isWsStdEditing = true;
+      renderWsStdTable(true);
+      saveBtn.classList.remove('app-hidden');
+      unlockBtn.textContent = '🔒 Lock Again';
+      status.textContent = '✏️ Ab aap values badal sakte hain. Badlav ke baad "Save Standard" dabayein.';
+    });
+  }
+  if (saveBtn){
+    saveBtn.addEventListener('click', async ()=>{
+      const standards = { strip:{}, wire:{} };
+      WS_STD_CAPACITIES.forEach(cap=>{
+        standards.strip[cap] = num($('wsStd_strip_'+cap).value);
+        standards.wire[cap] = num($('wsStd_wire_'+cap).value);
+      });
+      status.textContent = '💾 Saving…';
+      try{
+        await saveWsStandards(standards);
+        isWsStdEditing = false;
+        renderWsStdTable(false);
+        saveBtn.classList.add('app-hidden');
+        unlockBtn.textContent = '🔓 Change STD';
+        status.textContent = '✅ Saved — sabhi workers ko yehi standard dikhega.';
+      }catch(e){
+        console.error(e);
+        status.textContent = '⚠️ Save fail ho gaya, dobara try karein.';
+      }
+    });
+  }
+}
+
 
 async function saveToDrive(){
   setStatus('saving', 'Saving…');
-  const payload = JSON.stringify({ itemMaster, receives, issues, oilRecovery, savedAt: new Date().toISOString() });
+  const payload = JSON.stringify({ itemMaster, receives, issues, savedAt: new Date().toISOString() });
   const metadata = { name: myDataFileName(), parents: fileId ? undefined : [folderId] };
   const boundary = 'wsboundary';
   const body =
@@ -1108,7 +1071,8 @@ function initUI(){
   setupSelectDeleteBar('rec', receives, renderReceiveLog, ()=>editingReceiveId, v=>editingReceiveId=v);
   setupSelectDeleteBar('is', issues, renderIssueLog, ()=>editingIssueId, v=>editingIssueId=v);
 
-  initOilRecoveryUI();
+  $('pasteImportBtn') && $('pasteImportBtn').addEventListener('click', handlePasteImport);
+  initWsStdUI();
 
   renderMaster(); renderReceiveLog(); renderIssueLog(); if (!isAdmin) renderDashboard();
 }
@@ -1246,7 +1210,7 @@ async function refreshCombined(){
       try{
         const d = await (await driveFetch(`${DRIVE_API}/files/${f.id}?alt=media`)).json();
         return { fileName: f.name, label: workerLabelFromFileName(f.name),
-          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[], oilRecovery: d.oilRecovery||[] };
+          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[] };
       }catch(e){ console.warn('Could not read', f.name, e); return null; }
     }));
 
@@ -1273,7 +1237,6 @@ async function refreshCombined(){
     renderCombined();
     renderReceiveLog();
     renderIssueLog();
-    if (isAdmin && $('orView')){ populateOrViewOptions(); renderOilRecoveryPanel(); }
   }catch(e){
     console.error('Real-time update error:', e);
   } finally {
@@ -1318,6 +1281,101 @@ function renderMaster(){
       queueSave(); if (!isAdmin) renderDashboard();
     });
   });
+}
+
+// ===== PASTE FROM EXCEL — BULK IMPORT =====
+// Accepts rows copied straight out of Excel (tab-separated when pasted normally,
+// but also tolerates comma-separated or multi-space-separated text).
+// Supported row shapes (any of these, mixed lines are fine):
+//   Category <tab> Item Name <tab> Unit <tab> Opening Balance   (4 columns)
+//   Item Name <tab> Unit <tab> Opening Balance                  (3 columns)
+//   Item Name <tab> Opening Balance                             (2 columns)
+// Existing items (matched by name, case-insensitive) get their Opening Balance
+// (and Category/Unit if given) updated. Brand-new item names are only added
+// automatically when the signed-in user is XEN (admin) — regular workers just
+// get those rows skipped so the shared item list can't drift between workers.
+function splitPastedRow(line){
+  let cells = line.split('\t').map(c=>c.trim());
+  if (cells.length < 2 && line.includes(',')) cells = line.split(',').map(c=>c.trim());
+  if (cells.length < 2) cells = line.split(/\s{2,}/).map(c=>c.trim());
+  return cells;
+}
+
+async function handlePasteImport(){
+  const box = $('pasteImportBox');
+  const statusEl = $('pasteImportStatus');
+  const raw = box ? box.value : '';
+  if (!raw || !raw.trim()){
+    if (statusEl) statusEl.textContent = '⚠️ Pehle Excel se data copy karke box me paste karein.';
+    return;
+  }
+
+  const lines = raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length);
+  const headerWords = ['category','item name','item','opening','unit','size'];
+  let updated = 0, added = 0, skipped = 0;
+  const newCustomItems = [];
+
+  for (const line of lines){
+    let cells = splitPastedRow(line);
+    if (cells.length < 2){ skipped++; continue; }
+
+    // Skip an obvious header row
+    if (headerWords.some(w => cells[0].toLowerCase().includes(w))){ continue; }
+
+    let category = '', name = '', unit = '', openingRaw = '';
+    if (cells.length >= 4){
+      [category, name, unit, openingRaw] = cells;
+    } else if (cells.length === 3){
+      [name, unit, openingRaw] = cells;
+    } else {
+      [name, openingRaw] = cells;
+    }
+
+    name = (name || '').trim().toUpperCase();
+    if (!name){ skipped++; continue; }
+    const opening = num(openingRaw);
+
+    let item = itemMaster.find(it => it.name.toUpperCase() === name);
+    if (item){
+      item.opening = opening;
+      if (category) item.category = category.trim().toUpperCase();
+      if (unit) item.unit = unit.trim().toUpperCase();
+      updated++;
+    } else if (isAdmin){
+      const newItem = {
+        category: (category || 'GENERAL').trim().toUpperCase(),
+        name,
+        unit: (unit || 'KG').trim().toUpperCase(),
+        opening
+      };
+      itemMaster.push(newItem);
+      newCustomItems.push({ category: newItem.category, name: newItem.name, unit: newItem.unit });
+      added++;
+    } else {
+      skipped++;
+    }
+  }
+
+  if (newCustomItems.length){
+    try{
+      const existingCustom = await loadCustomItems();
+      await saveCustomItems(existingCustom.concat(newCustomItems));
+    }catch(e){ console.error('Could not save new pasted items', e); }
+  }
+
+  fillItemSelect($('lookupItem')); fillItemSelect($('recItem')); fillItemSelect($('isItem'));
+  renderMaster();
+  if (!isAdmin) renderDashboard();
+  queueSave();
+
+  if (statusEl){
+    let msg = `✅ ${updated} item update ho gaye`;
+    if (added) msg += `, ${added} naya item add hua`;
+    if (skipped) msg += `, ${skipped} line skip hui`;
+    msg += '.';
+    statusEl.textContent = msg;
+  }
+  if (box) box.value = '';
 }
 
 let editingReceiveId = null;
@@ -1428,494 +1486,6 @@ function renderIssueLog(){
 }
 
 /* =========================================================
-   OIL RECOVERY SHEET LOGIC & STRICT AUTOMATIC CARRY-FORWARD
-   ========================================================= */
-function initOilRecoveryUI(){
-  const sel = $('orMonth'); sel.innerHTML='';
-  MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; sel.appendChild(o); });
-  const today = new Date();
-  $('orMonth').value = today.getMonth()+1;
-  $('orYear').value = today.getFullYear();
-  syncPeriodFromMonthYear('orMonth','orYear','orFrom','orTo');
-
-  buildOilCapacityGrid('orRepairedGrid','orRep');
-  buildOilCapacityGrid('orDtcGrid','orDtc');
-  renderOilStandardsTable();
-
-  ['orMonth','orYear'].forEach(id=> $(id).addEventListener('change', ()=>{
-    syncPeriodFromMonthYear('orMonth','orYear','orFrom','orTo');
-    isOilEditing = false;
-    renderOilRecoveryPanel();
-  }));
-  
-  ['orFrom','orTo'].forEach(id=> $(id).addEventListener('change', ()=>{
-    isOilEditing = false;
-    renderOilRecoveryPanel();
-  }));
-
-  $('orView').addEventListener('change', ()=>{ isOilEditing = false; renderOilRecoveryPanel(); });
-  $('orSaveBtn').addEventListener('click', saveOilRecoveryEntry);
-  $('orEditBtn').addEventListener('click', ()=>{ isOilEditing = true; renderOilRecoveryPanel(); });
-
-  $('orStdToggleHeader').addEventListener('click', toggleOrStandards);
-  if (isAdmin) $('orStdSaveBtn').addEventListener('click', saveOilStandardsFromUI);
-  $('orExportBtn').addEventListener('click', exportOilRecoveryExcel);
-
-  ['orFreshOpen','orFreshRecv','orFreshIssTF','orFreshIssDist','orFreshIssOther',
-   'orBncOpen','orBncRecv','orBncIssTF','orBncIssDist','orBncIssOther',
-   'orReclaimOpen','orReclaimRecv','orReclaimIssTF','orReclaimIssDist','orReclaimIssOther'
-  ].forEach(id=> $(id).addEventListener('input', ()=>{ isOilEditing = true; updateOilBalanceClosing(); }));
-
-  document.querySelector('.tab[data-tab="oilrecovery"]').addEventListener('click', ()=>{
-    if (isAdmin && SHARED_FOLDER_ID){
-      if (!compiledWorkers.length) refreshCombined();
-      else { populateOrViewOptions(); renderOilRecoveryPanel(); }
-    } else {
-      renderOilRecoveryPanel();
-    }
-  });
-
-  renderOilRecoveryPanel();
-}
-
-function toggleOrStandards(){
-  const body = $('orStandardsBody');
-  const btn = $('orStdToggleBtn');
-  if (body.style.display === 'none' || !body.style.display){
-    body.style.display = 'block';
-    btn.textContent = '▲ Hide Standards';
-  } else {
-    body.style.display = 'none';
-    btn.textContent = '▶ Show / Change Standards';
-  }
-}
-
-function buildOilCapacityGrid(gridId, prefix){
-  const grid = $(gridId); grid.innerHTML = '';
-  OIL_CAPACITIES.forEach(cap=>{
-    const div = document.createElement('div'); div.className='cell';
-    div.innerHTML = `<label>${cap} KVA</label><input type="number" step="1" min="0" id="${prefix}_${cap}" placeholder="0" value="">`;
-    grid.appendChild(div);
-  });
-  grid.querySelectorAll('input').forEach(inp=> inp.addEventListener('input', ()=>{ isOilEditing = true; updateOilRecoverySummary(); }));
-}
-
-function renderOilStandardsTable(){
-  const tbody = $('orStdTableBody'); tbody.innerHTML='';
-  const std = oilStandards || DEFAULT_OIL_STANDARDS;
-  OIL_CAPACITIES.forEach(cap=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${cap} KVA</td>
-      <td><input type="number" step="0.01" id="std_c_${cap}" value="${std.consumption[cap]||''}" placeholder="0" style="width:110px;text-align:right" ${isAdmin?'':'disabled'}></td>
-      <td><input type="number" step="0.01" id="std_p_${cap}" value="${std.dtcPercent[cap]||''}" placeholder="0" style="width:110px;text-align:right" ${isAdmin?'':'disabled'}></td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-async function saveOilStandardsFromUI(){
-  const standards = { consumption:{}, dtcPercent:{} };
-  OIL_CAPACITIES.forEach(cap=>{
-    standards.consumption[cap] = num($('std_c_'+cap).value);
-    standards.dtcPercent[cap] = num($('std_p_'+cap).value);
-  });
-  setStatus('saving','Saving standards…');
-  try{
-    await saveOilStandards(standards);
-    setStatus(null,'Saved to Drive (Live 3s)');
-    updateOilRecoverySummary();
-    renderOilRangeSummary();
-  }catch(e){ setStatus('off','Standards save failed'); console.error(e); }
-}
-
-function populateOrViewOptions(){
-  const sel = $('orView');
-  if (!sel) return;
-  const prev = sel.value;
-  sel.innerHTML = '<option value="__mine__">My Entry</option><option value="__all__">All Workers Combined</option>';
-  
-  const seenLabels = new Set();
-  const myFile = myDataFileName();
-
-  compiledWorkers.forEach(w=>{
-    if (w.fileName !== myFile && !seenLabels.has(w.label)) {
-      seenLabels.add(w.label);
-      const o = document.createElement('option');
-      o.value = w.fileName;
-      o.textContent = w.label;
-      sel.appendChild(o);
-    }
-  });
-  if ([...sel.options].some(o=>o.value===prev)) sel.value = prev;
-}
-
-function findOrEntry(list, year, month){
-  return (list||[]).find(e=> e.year===year && e.month===month);
-}
-
-function monthKey(y,m){ return y*12+m; }
-
-// Opening balance strictly for a given year/month: use its saved entry's opening
-// if present, else fall back to the auto carry-forward from the nearest prior month.
-function getOilOpeningAt(list, year, month){
-  const entry = findOrEntry(list, year, month);
-  if (entry){
-    return { fresh:num(entry.oil.fresh.opening), bnc:num(entry.oil.bnc.opening), reclaim:num(entry.oil.reclaim.opening) };
-  }
-  const prevClose = getPrevOilClosing(list, year, month);
-  if (prevClose) return prevClose;
-  return { fresh:0, bnc:0, reclaim:0 };
-}
-
-// Sums every month's entry between From & To (inclusive) — DTC, Repair, Oil
-// Received, Oil Used — while Opening Balance always stays fixed to the "From" month.
-function aggregateOilRange(list, fromV, toV){
-  const std = oilStandards || DEFAULT_OIL_STANDARDS;
-  const zCap = {}; OIL_CAPACITIES.forEach(c=> zCap[c]=0);
-  const result = {
-    repaired:0, dtc:0,
-    repairedByCap: Object.assign({}, zCap), dtcByCap: Object.assign({}, zCap),
-    freshRecv:0, bncRecv:0, reclaimRecv:0,
-    freshIss:0, bncIss:0, reclaimIss:0,
-    consume:0, recovered:0,
-    opening:{fresh:0,bnc:0,reclaim:0},
-    monthsCount:0
-  };
-  if (!fromV || !toV) return result;
-  const fd = new Date(fromV), td = new Date(toV);
-  if (isNaN(fd) || isNaN(td)) return result;
-  const fy = fd.getFullYear(), fm = fd.getMonth()+1;
-  const ty = td.getFullYear(), tm = td.getMonth()+1;
-  const fromKeyV = monthKey(fy,fm), toKeyV = monthKey(ty,tm);
-
-  result.opening = getOilOpeningAt(list, fy, fm);
-
-  (list||[]).forEach(e=>{
-    const k = monthKey(e.year, e.month);
-    if (k < fromKeyV || k > toKeyV) return;
-    result.monthsCount++;
-    OIL_CAPACITIES.forEach(cap=>{
-      const rep = num(e.tfRepaired[cap]), dtc = num(e.tfDTC[cap]);
-      result.repaired += rep; result.dtc += dtc;
-      result.repairedByCap[cap] += rep; result.dtcByCap[cap] += dtc;
-      const stdConsume = num(std.consumption[cap]), dtcPct = num(std.dtcPercent[cap]);
-      result.consume += rep*stdConsume;
-      result.recovered += dtc*(stdConsume*dtcPct/100);
-    });
-    result.freshRecv += num(e.oil.fresh.received);
-    result.bncRecv += num(e.oil.bnc.received);
-    result.reclaimRecv += num(e.oil.reclaim.received);
-    result.freshIss += num(e.oil.fresh.issuedTF)+num(e.oil.fresh.issuedDist)+num(e.oil.fresh.issuedOther);
-    result.bncIss += num(e.oil.bnc.issuedTF)+num(e.oil.bnc.issuedDist)+num(e.oil.bnc.issuedOther);
-    result.reclaimIss += num(e.oil.reclaim.issuedTF)+num(e.oil.reclaim.issuedDist)+num(e.oil.reclaim.issuedOther);
-  });
-  return result;
-}
-
-// Returns the oilRecovery entry list relevant to the currently selected view
-// (My Entry / a specific worker / All Workers Combined).
-function getOilListForCurrentView(){
-  const view = (isAdmin && $('orView')) ? $('orView').value : '__mine__';
-  if (view === '__mine__') return oilRecovery;
-  if (view === '__all__'){
-    const map = {};
-    compiledWorkers.forEach(w=>{
-      (w.oilRecovery||[]).forEach(e=>{
-        const k = e.year+'-'+e.month;
-        if (!map[k]) map[k] = emptyOrEntry(e.year, e.month);
-        const m = map[k];
-        OIL_CAPACITIES.forEach(cap=>{ m.tfRepaired[cap]+=num(e.tfRepaired[cap]); m.tfDTC[cap]+=num(e.tfDTC[cap]); });
-        ['fresh','bnc','reclaim'].forEach(t=>{ Object.keys(m.oil[t]).forEach(f=> m.oil[t][f]+= num((e.oil[t]||{})[f])); });
-      });
-    });
-    return Object.values(map);
-  }
-  const w = compiledWorkers.find(x=>x.fileName===view);
-  return w ? (w.oilRecovery||[]) : [];
-}
-
-function buildReadonlyCapacityGrid(gridId, prefix){
-  const grid = $(gridId); if (!grid) return;
-  grid.innerHTML = '';
-  OIL_CAPACITIES.forEach(cap=>{
-    const div = document.createElement('div'); div.className='cell';
-    div.innerHTML = `<label>${cap} KVA</label><input type="number" id="${prefix}_${cap}" value="0" disabled>`;
-    grid.appendChild(div);
-  });
-}
-
-function renderOilRangeSummary(){
-  const fromV = $('orFrom').value, toV = $('orTo').value;
-  const list = getOilListForCurrentView();
-  const r = aggregateOilRange(list, fromV, toV);
-
-  $('orRangeNote').textContent = (fromV && toV)
-    ? `Period: ${fromV} → ${toV}  |  ${r.monthsCount} mahine ka data joda gaya hai`
-    : 'From aur To date choose karein.';
-
-  if (!$('orRngRepairedGrid').children.length) buildReadonlyCapacityGrid('orRngRepairedGrid','orRngRep');
-  if (!$('orRngDtcGrid').children.length) buildReadonlyCapacityGrid('orRngDtcGrid','orRngDtc');
-  OIL_CAPACITIES.forEach(cap=>{
-    const repEl = $('orRngRep_'+cap), dtcEl = $('orRngDtc_'+cap);
-    if (repEl) repEl.value = r.repairedByCap[cap] || 0;
-    if (dtcEl) dtcEl.value = r.dtcByCap[cap] || 0;
-  });
-
-  $('orRngRepaired').textContent = r.repaired;
-  $('orRngDtc').textContent = r.dtc;
-  const totRecv = r.freshRecv + r.bncRecv + r.reclaimRecv;
-  const totIss = r.freshIss + r.bncIss + r.reclaimIss;
-  $('orRngReceived').textContent = fmt(totRecv);
-  $('orRngIssued').textContent = fmt(totIss);
-
-  $('orRngFreshOpen').textContent = fmt(r.opening.fresh);
-  $('orRngBncOpen').textContent = fmt(r.opening.bnc);
-  $('orRngReclaimOpen').textContent = fmt(r.opening.reclaim);
-  const totOpen = r.opening.fresh + r.opening.bnc + r.opening.reclaim;
-  $('orRngTotOpen').textContent = fmt(totOpen);
-
-  $('orRngFreshRecv').textContent = fmt(r.freshRecv);
-  $('orRngBncRecv').textContent = fmt(r.bncRecv);
-  $('orRngReclaimRecv').textContent = fmt(r.reclaimRecv);
-  $('orRngTotRecv').textContent = fmt(totRecv);
-
-  $('orRngFreshIss').textContent = fmt(r.freshIss);
-  $('orRngBncIss').textContent = fmt(r.bncIss);
-  $('orRngReclaimIss').textContent = fmt(r.reclaimIss);
-  $('orRngTotIss').textContent = fmt(totIss);
-
-  const freshClose = r.opening.fresh + r.freshRecv - r.freshIss;
-  const bncClose = r.opening.bnc + r.bncRecv - r.bncIss;
-  const reclaimClose = r.opening.reclaim + r.reclaimRecv - r.reclaimIss;
-  $('orRngFreshClose').textContent = fmt(freshClose);
-  $('orRngBncClose').textContent = fmt(bncClose);
-  $('orRngReclaimClose').textContent = fmt(reclaimClose);
-  $('orRngTotClose').textContent = fmt(freshClose + bncClose + reclaimClose);
-
-  $('orRngCalcNote').textContent = `Oil Consumed as per Standard = ${fmt(r.consume)} LTR  |  Oil Recovered as per Standard = ${fmt(r.recovered)} LTR`;
-}
-
-// Finds the most recent available prior month entry and calculates its closing balance
-function getPrevOilClosing(list, year, month) {
-  if (!list || !list.length) return null;
-  const currentKey = year * 12 + month;
-  let closestPrev = null;
-  let maxKey = -1;
-
-  list.forEach(e => {
-    const key = e.year * 12 + e.month;
-    if (key < currentKey && key > maxKey) {
-      maxKey = key;
-      closestPrev = e;
-    }
-  });
-
-  if (!closestPrev) return null;
-
-  const calcClose = (o) => (num(o.opening) + num(o.received) - num(o.issuedTF) - num(o.issuedDist) - num(o.issuedOther));
-  return {
-    fresh: calcClose(closestPrev.oil.fresh),
-    bnc: calcClose(closestPrev.oil.bnc),
-    reclaim: calcClose(closestPrev.oil.reclaim)
-  };
-}
-
-function emptyOrEntry(year, month){
-  const z = {}; OIL_CAPACITIES.forEach(c=> z[c]=0);
-  return {
-    year, month, savedAt: null,
-    tfRepaired: Object.assign({}, z), tfDTC: Object.assign({}, z),
-    oil: {
-      fresh:{opening:0,received:0,issuedTF:0,issuedDist:0,issuedOther:0},
-      bnc:{opening:0,received:0,issuedTF:0,issuedDist:0,issuedOther:0},
-      reclaim:{opening:0,received:0,issuedTF:0,issuedDist:0,issuedOther:0}
-    }
-  };
-}
-
-function isEntryLockedByTime(entry){
-  if (!entry || !entry.savedAt) return false;
-  const savedDate = new Date(entry.savedAt);
-  const diffDays = (new Date() - savedDate) / (1000 * 60 * 60 * 24);
-  return diffDays > 7;
-}
-
-function fillOilFormFromEntry(entry, editable, isAutoCarryForward = false){
-  OIL_CAPACITIES.forEach(cap=>{
-    const repVal = entry.tfRepaired[cap];
-    const dtcVal = entry.tfDTC[cap];
-    $('orRep_'+cap).value = repVal ? repVal : '';
-    $('orDtc_'+cap).value = dtcVal ? dtcVal : '';
-    $('orRep_'+cap).disabled = !editable;
-    $('orDtc_'+cap).disabled = !editable;
-  });
-  const o = entry.oil;
-  const map = {
-    orFreshOpen:o.fresh.opening, orFreshRecv:o.fresh.received, orFreshIssTF:o.fresh.issuedTF, orFreshIssDist:o.fresh.issuedDist, orFreshIssOther:o.fresh.issuedOther,
-    orBncOpen:o.bnc.opening, orBncRecv:o.bnc.received, orBncIssTF:o.bnc.issuedTF, orBncIssDist:o.bnc.issuedDist, orBncIssOther:o.bnc.issuedOther,
-    orReclaimOpen:o.reclaim.opening, orReclaimRecv:o.reclaim.received, orReclaimIssTF:o.reclaim.issuedTF, orReclaimIssDist:o.reclaim.issuedDist, orReclaimIssOther:o.reclaim.issuedOther
-  };
-  Object.entries(map).forEach(([id,val])=>{
-    $(id).value = val ? val : '';
-    $(id).disabled = !editable;
-  });
-
-  // STRICT RULE: Opening balance is read-only if carry-forwarded from any previous month
-  if (isAutoCarryForward) {
-    $('orFreshOpen').disabled = true;
-    $('orBncOpen').disabled = true;
-    $('orReclaimOpen').disabled = true;
-  }
-
-  updateOilBalanceClosing();
-  updateOilRecoverySummary();
-}
-
-function readOilFormToEntry(year, month){
-  const entry = emptyOrEntry(year, month);
-  OIL_CAPACITIES.forEach(cap=>{ entry.tfRepaired[cap] = num($('orRep_'+cap).value); entry.tfDTC[cap] = num($('orDtc_'+cap).value); });
-  entry.oil.fresh = {opening:num($('orFreshOpen').value), received:num($('orFreshRecv').value), issuedTF:num($('orFreshIssTF').value), issuedDist:num($('orFreshIssDist').value), issuedOther:num($('orFreshIssOther').value)};
-  entry.oil.bnc = {opening:num($('orBncOpen').value), received:num($('orBncRecv').value), issuedTF:num($('orBncIssTF').value), issuedDist:num($('orBncIssDist').value), issuedOther:num($('orBncIssOther').value)};
-  entry.oil.reclaim = {opening:num($('orReclaimOpen').value), received:num($('orReclaimRecv').value), issuedTF:num($('orReclaimIssTF').value), issuedDist:num($('orReclaimIssDist').value), issuedOther:num($('orReclaimIssOther').value)};
-  return entry;
-}
-
-function updateOilBalanceClosing(){
-  function closing(prefix){
-    const open=num($(prefix+'Open').value), recv=num($(prefix+'Recv').value), issTF=num($(prefix+'IssTF').value), issDist=num($(prefix+'IssDist').value), issOther=num($(prefix+'IssOther').value);
-    return open+recv-issTF-issDist-issOther;
-  }
-  $('orFreshClose').textContent = fmt(closing('orFresh'));
-  $('orBncClose').textContent = fmt(closing('orBnc'));
-  $('orReclaimClose').textContent = fmt(closing('orReclaim'));
-}
-
-function updateOilRecoverySummary(){
-  const std = oilStandards || DEFAULT_OIL_STANDARDS;
-  let totRep=0, totConsume=0, totDtc=0, totRecovered=0;
-  OIL_CAPACITIES.forEach(cap=>{
-    const repInp = $('orRep_'+cap), dtcInp = $('orDtc_'+cap);
-    const repNos = repInp?num(repInp.value):0;
-    const dtcNos = dtcInp?num(dtcInp.value):0;
-    const stdConsume = num(std.consumption[cap]);
-    const dtcPct = num(std.dtcPercent[cap]);
-    totRep += repNos;
-    totConsume += repNos*stdConsume;
-    totDtc += dtcNos;
-    totRecovered += dtcNos*(stdConsume*dtcPct/100);
-  });
-  $('orTotRepairedNos').textContent = totRep;
-  $('orTotConsume').textContent = fmt(totConsume);
-  $('orTotDtcNos').textContent = totDtc;
-  $('orTotRecovered').textContent = fmt(totRecovered);
-  $('orCalcNote').textContent = `Calculated Oil Recovery (as per standard) = ${fmt(totRecovered)} LTR`;
-}
-
-async function saveOilRecoveryEntry(){
-  const year = parseInt($('orYear').value,10), month = parseInt($('orMonth').value,10);
-  const entry = readOilFormToEntry(year, month);
-  
-  // Ensure opening balance is strictly calculated from previous closing if prior data exists
-  const prevClose = getPrevOilClosing(oilRecovery, year, month);
-  if (prevClose !== null) {
-    entry.oil.fresh.opening = prevClose.fresh;
-    entry.oil.bnc.opening = prevClose.bnc;
-    entry.oil.reclaim.opening = prevClose.reclaim;
-  }
-
-  entry.savedAt = new Date().toISOString();
-  
-  const idx = oilRecovery.findIndex(e=> e.year===year && e.month===month);
-  if (idx>=0) oilRecovery[idx] = entry; else oilRecovery.push(entry);
-  
-  queueSave();
-  isOilEditing = false;
-  renderOilRecoveryPanel();
-}
-
-function renderOilRecoveryPanel(){
-  const year = parseInt($('orYear').value,10), month = parseInt($('orMonth').value,10);
-  const fromV = $('orFrom').value, toV = $('orTo').value;
-  if (!year || !month) return;
-  
-  $('orPeriodLabel').textContent = (fromV && toV) ? (fromV + ' → ' + toV) : (MONTHS[month-1] + ' ' + year);
-  renderOilStandardsTable();
-
-  const view = (isAdmin && $('orView')) ? $('orView').value : '__mine__';
-  const noteWrap = $('orReadonlyNoteWrap'), note = $('orReadonlyNote');
-
-  if (view === '__mine__'){
-    noteWrap.style.display = 'none';
-    let entry = findOrEntry(oilRecovery, year, month);
-    const prevClose = getPrevOilClosing(oilRecovery, year, month);
-    let isAutoCarryForward = false;
-
-    if (prevClose !== null) {
-      isAutoCarryForward = true;
-      if (!entry) {
-        entry = emptyOrEntry(year, month);
-      }
-      entry.oil.fresh.opening = prevClose.fresh;
-      entry.oil.bnc.opening = prevClose.bnc;
-      entry.oil.reclaim.opening = prevClose.reclaim;
-    } else {
-      if (!entry) {
-        entry = emptyOrEntry(year, month);
-      }
-    }
-
-    const lockedByTime = isEntryLockedByTime(entry) && !isAdmin;
-
-    if (lockedByTime) {
-      fillOilFormFromEntry(entry, false, isAutoCarryForward);
-      $('orSaveBtn').style.display = 'none';
-      $('orEditBtn').style.display = 'none';
-      $('orLockStatus').textContent = '🔒 Ye entry 1 hafte (7 din) se purani hai aur lock ho chuki hai. Sirf XEN hi change kar sakte hain.';
-      $('orLockStatus').style.color = 'var(--red)';
-    } else {
-      const isSaved = !!entry.savedAt;
-      const canEdit = isOilEditing || !isSaved;
-      fillOilFormFromEntry(entry, canEdit, isAutoCarryForward);
-      
-      if (canEdit) {
-        $('orSaveBtn').style.display = 'inline-block';
-        $('orEditBtn').style.display = 'none';
-        $('orLockStatus').textContent = isAutoCarryForward ? 'Opening Balance Auto Carry-Forwarded (Read-Only)' : 'Pehli Entry: Initial Opening Balance Bharein';
-        $('orLockStatus').style.color = 'var(--green)';
-      } else {
-        $('orSaveBtn').style.display = 'none';
-        $('orEditBtn').style.display = 'inline-block';
-        $('orLockStatus').textContent = '🔒 Data Saved (Read-Only). Badlav karne ke liye Edit dabayein.';
-        $('orLockStatus').style.color = 'var(--navy)';
-      }
-    }
-  } else if (view === '__all__'){
-    noteWrap.style.display='block'; note.textContent = 'Ye "All Workers Combined" summary hai — read-only, sabhi workers ke figures jode gaye hain.';
-    const merged = emptyOrEntry(year, month);
-    compiledWorkers.forEach(w=>{
-      const e = findOrEntry(w.oilRecovery, year, month);
-      if (!e) return;
-      OIL_CAPACITIES.forEach(cap=>{ merged.tfRepaired[cap]+=num(e.tfRepaired[cap]); merged.tfDTC[cap]+=num(e.tfDTC[cap]); });
-      ['fresh','bnc','reclaim'].forEach(k=>{ Object.keys(merged.oil[k]).forEach(f=> merged.oil[k][f]+= num((e.oil[k]||{})[f])); });
-    });
-    fillOilFormFromEntry(merged, false, true);
-    $('orSaveBtn').style.display = 'none';
-    $('orEditBtn').style.display = 'none';
-    $('orLockStatus').textContent = '';
-  } else {
-    const w = compiledWorkers.find(x=>x.fileName===view);
-    noteWrap.style.display='block';
-    note.textContent = w ? `Read-only — ${w.label} ki entry dekh rahe hain.` : 'Worker data load ho raha hai…';
-    const entry = w ? (findOrEntry(w.oilRecovery, year, month) || emptyOrEntry(year, month)) : emptyOrEntry(year, month);
-    fillOilFormFromEntry(entry, false, true);
-    $('orSaveBtn').style.display = 'none';
-    $('orEditBtn').style.display = 'none';
-    $('orLockStatus').textContent = '';
-  }
-
-  renderOilRangeSummary();
-}
-
-/* =========================================================
    EXCEL EXPORTS
    ========================================================= */
 function exportDashboardExcel(){
@@ -2003,45 +1573,6 @@ function exportCombinedExcel(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Combined Stock');
   XLSX.writeFile(wb, `Combined_Stock_${MONTHS[month-1]}_${year}.xlsx`);
-}
-
-function exportOilRecoveryExcel(){
-  const year = parseInt($('orYear').value,10), month = parseInt($('orMonth').value,10);
-  const std = oilStandards || DEFAULT_OIL_STANDARDS;
-  const entry = readOilFormToEntry(year, month);
-  const rows = [];
-  rows.push(['TOTAL TRANSFORMER REPAIRED','','','','','','','','','','','TOTAL']);
-  rows.push(['CAPACITY', ...OIL_CAPACITIES.map(c=>c+'KVA'), '']);
-  rows.push(['NOS', ...OIL_CAPACITIES.map(c=>entry.tfRepaired[c]||0), OIL_CAPACITIES.reduce((s,c)=>s+num(entry.tfRepaired[c]),0)]);
-  rows.push(['stant oil consum.', ...OIL_CAPACITIES.map(c=>std.consumption[c]||0), '']);
-  const consumeRow = OIL_CAPACITIES.map(c=> num(entry.tfRepaired[c])*num(std.consumption[c]));
-  rows.push(['consume as per standered', ...consumeRow, consumeRow.reduce((a,b)=>a+b,0)]);
-  rows.push([]);
-  rows.push(['TOTAL TRANSFORMER DTC','','','','','','','','','','','TOTAL']);
-  rows.push(['CAPACITY', ...OIL_CAPACITIES.map(c=>c+'KVA'), '']);
-  rows.push(['NOS', ...OIL_CAPACITIES.map(c=>entry.tfDTC[c]||0), OIL_CAPACITIES.reduce((s,c)=>s+num(entry.tfDTC[c]),0)]);
-  rows.push(['standered oil', ...OIL_CAPACITIES.map(c=> (num(std.consumption[c])*num(std.dtcPercent[c])/100)), '']);
-  const recovRow = OIL_CAPACITIES.map(c=> num(entry.tfDTC[c]) * (num(std.consumption[c])*num(std.dtcPercent[c])/100));
-  rows.push(['OIL RECOVERED AS PER STANDERED', ...recovRow, recovRow.reduce((a,b)=>a+b,0)]);
-  rows.push([]);
-  rows.push(['','Fresh Oil','','B&C Oil','','Reclaim Oil']);
-  const o = entry.oil;
-  rows.push(['Opening Balance', o.fresh.opening,'', o.bnc.opening,'', o.reclaim.opening]);
-  rows.push(['Received During Month', o.fresh.received,'', o.bnc.received,'', o.reclaim.received]);
-  rows.push(['issued for TF Reaparing', o.fresh.issuedTF,'', o.bnc.issuedTF,'', o.reclaim.issuedTF]);
-  rows.push(['issued to Dist division', o.fresh.issuedDist,'', o.bnc.issuedDist,'', o.reclaim.issuedDist]);
-  rows.push(['issued to other workshop / B&C Oil Issue for reclaim', o.fresh.issuedOther,'', o.bnc.issuedOther,'', o.reclaim.issuedOther]);
-  const fClose = o.fresh.opening+o.fresh.received-o.fresh.issuedTF-o.fresh.issuedDist-o.fresh.issuedOther;
-  const bClose = o.bnc.opening+o.bnc.received-o.bnc.issuedTF-o.bnc.issuedDist-o.bnc.issuedOther;
-  const rClose = o.reclaim.opening+o.reclaim.received-o.reclaim.issuedTF-o.reclaim.issuedDist-o.reclaim.issuedOther;
-  rows.push(['closing balance', fClose,'', bClose,'', rClose]);
-  rows.push([]);
-  rows.push(['CALCULATED OIL RECOVERY', recovRow.reduce((a,b)=>a+b,0)]);
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'AZAMGARH');
-  XLSX.writeFile(wb, `Oil_Recovery_Sheet_${MONTHS[month-1]}_${year}.xlsx`);
 }
 </script>
 </body>
