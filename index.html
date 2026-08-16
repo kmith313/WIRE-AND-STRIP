@@ -111,21 +111,28 @@
   table{width:100%;border-collapse:collapse;font-size:13px;}
   thead th{background:var(--navy);color:#fff;text-align:left;padding:9px 10px;font-size:11.5px;
     text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0;white-space:nowrap;
-    box-sizing:border-box;line-height:16px;border-right:1px solid rgba(255,255,255,.18);
-    border-bottom:1px solid rgba(255,255,255,.18);}
-  thead th:last-child{border-right:none;}
+    box-sizing:border-box;line-height:16px;}
   /* Two-row headers (rowspan + a sub-header row underneath): the sub-header row
      must stick BELOW the first row, not on top of it, or it overlaps the table body. */
   thead tr:nth-child(2) th{top:34px;}
-  tbody td{padding:8px 10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);}
-  tbody td:last-child{border-right:none;}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--line);}
   tbody tr:nth-child(even){background:#fafcfd;}
   tbody tr:hover{background:var(--steel-light);}
   td.num{font-family:var(--mono);text-align:right;}
   td.center{text-align:center;}
   .table-scroll{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:10px;}
-  tfoot td{background:var(--navy);color:#fff;font-weight:700;font-family:var(--mono);border-right:1px solid rgba(255,255,255,.18);}
-  tfoot td:last-child{border-right:none;}
+  tfoot td{background:var(--navy);color:#fff;font-weight:700;font-family:var(--mono);}
+
+  /* Wire & Strip Consumption / Summary tables only — these are wide with many
+     numeric columns, so clear column dividers help readability. Scoped to
+     .ws-grid so the other 4 original tabs (Dashboard/Master/Receive/Issue)
+     keep their original plain look. */
+  .ws-grid thead th{border-right:1px solid rgba(255,255,255,.2);border-bottom:1px solid rgba(255,255,255,.2);}
+  .ws-grid thead th:last-child{border-right:none;}
+  .ws-grid tbody td{border-right:1px solid var(--line);}
+  .ws-grid tbody td:last-child{border-right:none;}
+  .ws-grid tfoot td{border-right:1px solid rgba(255,255,255,.2);}
+  .ws-grid tfoot td:last-child{border-right:none;}
 
   .cat-pill{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--steel-light);color:var(--navy-2);}
 
@@ -443,7 +450,7 @@
       <div class="card">
         <h2>Wire &amp; Strip Consumption Report</h2>
         <div class="table-scroll">
-          <table>
+          <table class="ws-grid">
             <thead>
               <tr>
                 <th rowspan="2">Category</th><th rowspan="2">Item Name (Size)</th><th rowspan="2">Unit</th>
@@ -496,7 +503,7 @@
       <div class="card">
         <h2>Wire &amp; Strip Consumption Summary</h2>
         <div class="table-scroll">
-          <table>
+          <table class="ws-grid">
             <thead>
               <tr>
                 <th rowspan="2">Category</th><th rowspan="2">Item Name (Size)</th><th rowspan="2">Unit</th>
@@ -565,7 +572,7 @@
         <h2>Wire &amp; Strip Consumption Report — <span id="cbWsHeading">All Workers Combined</span></h2>
         <div class="note" style="margin-bottom:10px">Upar diya gaya Month/Year aur "View" (dropdown) dono table ke liye common hain — worker chuniye ya "All Workers Combined" rakhiye.</div>
         <div class="table-scroll">
-          <table>
+          <table class="ws-grid">
             <thead>
               <tr>
                 <th rowspan="2">Category</th><th rowspan="2">Item Name (Size)</th><th rowspan="2">Unit</th>
@@ -611,7 +618,7 @@
         </div>
         <div class="note" style="margin-bottom:10px">Upar wala "View" dropdown (worker chuniye ya "All Workers Combined") is table ke liye bhi common hai. Opening hamesha "From" month ka, baaki total is range ka.</div>
         <div class="table-scroll">
-          <table>
+          <table class="ws-grid">
             <thead>
               <tr>
                 <th rowspan="2">Category</th><th rowspan="2">Item Name (Size)</th><th rowspan="2">Unit</th>
