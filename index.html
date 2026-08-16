@@ -148,8 +148,6 @@
   .btn.outline:hover{background:var(--steel-light);}
   .rowbtns{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
   th.chkcol,td.chkcol{width:34px;text-align:center;padding:8px 4px;}
-  .import-box{width:100%;font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical;}
-  .import-box:focus{outline:2px solid var(--amber);outline-offset:1px;}
 
   /* ===== ACTION TOAST NOTIFICATIONS ===== */
   #toastStack{
@@ -341,39 +339,8 @@
       </div>
 
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-          <h2 style="margin:0">⚙️ Wire &amp; Strip Repair Standards — Capacity Wise</h2>
-          <button class="btn outline small" id="wsStdUnlockBtn" type="button">🔓 Change STD</button>
-        </div>
-        <div class="yellow-hint">Ye standard values sabhi workers ki calculation me common hoti hain. Badalne ke liye pehle upar <b>"Change STD"</b> button dabayein, tabhi values edit ho sakti hain.</div>
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>Capacity (KVA)</th><th style="text-align:right">Strip Standard (KG)</th><th style="text-align:right">Wire Standard (KG)</th></tr></thead>
-            <tbody id="wsStdTableBody"></tbody>
-          </table>
-        </div>
-        <div class="row" style="margin-top:12px;align-items:center;gap:10px">
-          <button class="btn green app-hidden" id="wsStdSaveBtn" type="button">💾 Save Standard</button>
-          <span class="note" id="wsStdStatus" style="margin:0">🔒 Locked — badalne ke liye "Change STD" dabayein.</span>
-        </div>
-        <div class="note" style="margin-top:12px;line-height:1.6">
-          <b>Note:</b> According to std. wire strip can be used (85%).<br>
-          It can be increase if old wire and strip are not used.
-        </div>
-      </div>
-      <div class="card">
-        <h2>📋 Paste from Excel — Bulk Import</h2>
-        <div class="yellow-hint">Apne Excel sheet se seedha rows copy karke (Ctrl+C) yahan neeche paste karein (Ctrl+V), phir <b>Import</b> dabayein. Format: <b>Category&nbsp;&nbsp;Item Name&nbsp;&nbsp;Unit&nbsp;&nbsp;Opening Balance</b> (Tab ya Comma se alag columns) — ya sirf <b>Item Name&nbsp;&nbsp;Opening Balance</b> bhi chalega, jo item pehle se list me hoga uska balance update ho jayega.</div>
-        <textarea id="pasteImportBox" class="import-box" rows="6" placeholder="STRIP&#9;DPC ALUM. STRIP 7.1X4.1MM&#9;KG&#9;283&#10;WIRE&#9;SE ALUM. WIRE 19 SWG&#9;KG&#9;1696.95"></textarea>
-        <div class="row" style="margin-top:10px;align-items:center">
-          <button class="btn green" id="pasteImportBtn" type="button">📥 Import Pasted Data</button>
-          <span class="note" id="pasteImportStatus" style="margin:0"></span>
-        </div>
-      </div>
-
-      <div class="card">
         <h2>Item Master — Sizes &amp; Initial Opening Balance</h2>
-        <div class="yellow-hint">Initial Opening Balance sirf <b>ek baar</b> bharein. Uske baad balance apne aap carry-forward hoga. Ya upar diye gaye "Paste from Excel" box se ek saath sab bhar sakte hain.</div>
+        <div class="yellow-hint">Initial Opening Balance sirf <b>ek baar</b> bharein. Uske baad balance apne aap carry-forward hoga.</div>
         <div class="table-scroll" style="max-height:560px">
           <table>
             <thead><tr><th>Category</th><th>Item Name (Size)</th><th>Unit</th><th style="text-align:right">Initial Opening Balance</th></tr></thead>
@@ -438,6 +405,23 @@
 
     <!-- WIRE & STRIP CONSUMPTION (Excel-style monthly report) -->
     <div class="panel" id="panel-wsconsumption">
+      <div class="card" style="padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <h2 style="margin:0;font-size:14px">⚙️ Repair Standards (KVA)</h2>
+          <button class="btn outline small" id="wsStdUnlockBtn" type="button">🔓 Change STD</button>
+        </div>
+        <div class="table-scroll" style="max-height:220px;margin-top:8px">
+          <table class="ws-grid" style="font-size:12px">
+            <thead><tr><th style="padding:6px 8px">Capacity</th><th style="text-align:right;padding:6px 8px">Strip (KG)</th><th style="text-align:right;padding:6px 8px">Wire (KG)</th></tr></thead>
+            <tbody id="wsStdTableBody"></tbody>
+          </table>
+        </div>
+        <div class="row" style="margin-top:8px;align-items:center;gap:8px">
+          <button class="btn green small app-hidden" id="wsStdSaveBtn" type="button">💾 Save</button>
+          <span class="note" id="wsStdStatus" style="margin:0;font-size:11px">🔒 Locked — badalne ke liye "Change STD" dabayein.</span>
+        </div>
+        <div class="note" style="margin-top:8px;font-size:11px;line-height:1.5">According to std. wire strip can be used (85%). It can be increase if old wire and strip are not used.</div>
+      </div>
       <div class="card">
         <h2>Select Month</h2>
         <div class="row">
@@ -698,6 +682,20 @@ const DEFAULT_ITEMS = [
   ["WIRE","D.P.C. WIRE (ALU) 12.5 SWG.","KG"],
   ["WIRE","D.P.C. WIRE (ALU) 13 SWG.","KG"],
 ];
+
+// REPAIR column, exactly as given in XEN's Excel (K4:K10) — maps the first 7
+// STRIP sizes to their transformer repair capacity (KVA). Used as the default
+// value shown in the Consumption report's Repair column for these items; a
+// worker can still type over it for any month, same as every other field.
+const REPAIR_CAPACITY_MAP = {
+  "DPC ALUM. STRIP 7.1X4.1MM": 10,
+  "DPC ALUM. STRIP 6.6X4.8 MM": 16,
+  "DPC ALUM. STRIP 7X3 MM": 25,
+  "DPC ALUM. STRIP 8X2.75 MM": 63,
+  "DPC ALUM. STRIP 7X4 MM": 100,
+  "DPC ALUM. STRIP 8X3.5MM": 160,
+  "D.P.C. STRIP (ALU) 10X4 M.M.": 250,
+};
 
 let itemMaster = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit,opening:0}));
 let receives = [];
@@ -1324,7 +1322,6 @@ function initUI(){
   setupSelectDeleteBar('rec', receives, renderReceiveLog, ()=>editingReceiveId, v=>editingReceiveId=v);
   setupSelectDeleteBar('is', issues, renderIssueLog, ()=>editingIssueId, v=>editingIssueId=v);
 
-  $('pasteImportBtn') && $('pasteImportBtn').addEventListener('click', handlePasteImport);
   initWsStdUI();
 
   renderMaster(); renderReceiveLog(); renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
@@ -1441,9 +1438,10 @@ function hasOverride(rec, field){
 // Manual fields only (Issue/Consumed/Repair) — always defined with 0 defaults.
 function computeWsRecord(itemName, month, year, data){
   const rec = getWsRecord(itemName, month, year, data);
+  const repair = hasOverride(rec, 'repair') ? num(rec.repair) : (REPAIR_CAPACITY_MAP[itemName] || 0);
   return {
     issueOtherDivision: num(rec && rec.issueOtherDivision), issueOtherWorkshop: num(rec && rec.issueOtherWorkshop),
-    consumedNew: num(rec && rec.consumedNew), consumedOld: num(rec && rec.consumedOld), repair: num(rec && rec.repair)
+    consumedNew: num(rec && rec.consumedNew), consumedOld: num(rec && rec.consumedOld), repair
   };
 }
 
@@ -1715,7 +1713,7 @@ function renderCombinedWsSummary(){
   $('cbSumTotRepair').textContent=fmt(t.repair);
 }
 
-
+function lastDayOfMonth(year, month){ return new Date(year, month, 0).getDate(); }
 
 function syncPeriodFromMonthYear(monthSelId, yearInpId, fromInpId, toInpId){
   const month = parseInt($(monthSelId).value,10), year = parseInt($(yearInpId).value,10);
@@ -1836,101 +1834,6 @@ function renderMaster(){
       queueSave(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
     });
   });
-}
-
-// ===== PASTE FROM EXCEL — BULK IMPORT =====
-// Accepts rows copied straight out of Excel (tab-separated when pasted normally,
-// but also tolerates comma-separated or multi-space-separated text).
-// Supported row shapes (any of these, mixed lines are fine):
-//   Category <tab> Item Name <tab> Unit <tab> Opening Balance   (4 columns)
-//   Item Name <tab> Unit <tab> Opening Balance                  (3 columns)
-//   Item Name <tab> Opening Balance                             (2 columns)
-// Existing items (matched by name, case-insensitive) get their Opening Balance
-// (and Category/Unit if given) updated. Brand-new item names are only added
-// automatically when the signed-in user is XEN (admin) — regular workers just
-// get those rows skipped so the shared item list can't drift between workers.
-function splitPastedRow(line){
-  let cells = line.split('\t').map(c=>c.trim());
-  if (cells.length < 2 && line.includes(',')) cells = line.split(',').map(c=>c.trim());
-  if (cells.length < 2) cells = line.split(/\s{2,}/).map(c=>c.trim());
-  return cells;
-}
-
-async function handlePasteImport(){
-  const box = $('pasteImportBox');
-  const statusEl = $('pasteImportStatus');
-  const raw = box ? box.value : '';
-  if (!raw || !raw.trim()){
-    if (statusEl) statusEl.textContent = '⚠️ Pehle Excel se data copy karke box me paste karein.';
-    return;
-  }
-
-  const lines = raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length);
-  const headerWords = ['category','item name','item','opening','unit','size'];
-  let updated = 0, added = 0, skipped = 0;
-  const newCustomItems = [];
-
-  for (const line of lines){
-    let cells = splitPastedRow(line);
-    if (cells.length < 2){ skipped++; continue; }
-
-    // Skip an obvious header row
-    if (headerWords.some(w => cells[0].toLowerCase().includes(w))){ continue; }
-
-    let category = '', name = '', unit = '', openingRaw = '';
-    if (cells.length >= 4){
-      [category, name, unit, openingRaw] = cells;
-    } else if (cells.length === 3){
-      [name, unit, openingRaw] = cells;
-    } else {
-      [name, openingRaw] = cells;
-    }
-
-    name = (name || '').trim().toUpperCase();
-    if (!name){ skipped++; continue; }
-    const opening = num(openingRaw);
-
-    let item = itemMaster.find(it => it.name.toUpperCase() === name);
-    if (item){
-      item.opening = opening;
-      if (category) item.category = category.trim().toUpperCase();
-      if (unit) item.unit = unit.trim().toUpperCase();
-      updated++;
-    } else if (isAdmin){
-      const newItem = {
-        category: (category || 'GENERAL').trim().toUpperCase(),
-        name,
-        unit: (unit || 'KG').trim().toUpperCase(),
-        opening
-      };
-      itemMaster.push(newItem);
-      newCustomItems.push({ category: newItem.category, name: newItem.name, unit: newItem.unit });
-      added++;
-    } else {
-      skipped++;
-    }
-  }
-
-  if (newCustomItems.length){
-    try{
-      const existingCustom = await loadCustomItems();
-      await saveCustomItems(existingCustom.concat(newCustomItems));
-    }catch(e){ console.error('Could not save new pasted items', e); }
-  }
-
-  fillItemSelect($('lookupItem')); fillItemSelect($('recItem')); fillItemSelect($('isItem'));
-  renderMaster();
-  if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
-  queueSave();
-
-  if (statusEl){
-    let msg = `✅ ${updated} item update ho gaye`;
-    if (added) msg += `, ${added} naya item add hua`;
-    if (skipped) msg += `, ${skipped} line skip hui`;
-    msg += '.';
-    statusEl.textContent = msg;
-  }
-  if (box) box.value = '';
 }
 
 let editingReceiveId = null;
