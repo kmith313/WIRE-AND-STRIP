@@ -265,6 +265,7 @@
       <div class="tab" data-tab="master">Item Master</div>
       <div class="tab" id="tab-receive" data-tab="receive">Receive Entry</div>
       <div class="tab" id="tab-issue" data-tab="issue">Issue Entry</div>
+      <div class="tab" id="tab-wsconsumption" data-tab="wsconsumption">Wire &amp; Strip Consumption</div>
       <div class="tab app-hidden" id="combinedTab" data-tab="combined">All Workers Combined</div>
     </div>
 
@@ -419,7 +420,56 @@
       </div>
     </div>
 
-    <!-- ALL WORKERS COMBINED -->
+    <!-- WIRE & STRIP CONSUMPTION (Excel-style monthly report) -->
+    <div class="panel" id="panel-wsconsumption">
+      <div class="card">
+        <h2>Select Month</h2>
+        <div class="row">
+          <div class="field"><label>Month</label><select id="wsMonth"></select></div>
+          <div class="field"><label>Year</label><input type="number" id="wsYear" min="2020" max="2100" style="width:100px"></div>
+          <div class="period-line">Showing: <b id="wsPeriodLabel">—</b></div>
+        </div>
+        <div class="yellow-hint">Opening Balance apne aap pichhle month ke Balance se aa jayega. <b>Receive</b> column seedha "Receive Entry" tab se aata hai — yahan sirf <b>Issue to Other Division / Workshop</b>, <b>Consumed (New/Old)</b> aur <b>Repair</b> bharen.</div>
+      </div>
+      <div class="card">
+        <h2>Wire &amp; Strip Consumption Report</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2">Category</th><th rowspan="2">Item Name (Size)</th><th rowspan="2">Unit</th>
+                <th rowspan="2" style="text-align:right">Opening</th>
+                <th rowspan="2" style="text-align:right">Receive</th>
+                <th colspan="2">Issue</th>
+                <th rowspan="2" style="text-align:right">Total</th>
+                <th colspan="2">Consumed</th>
+                <th rowspan="2" style="text-align:right">Balance</th>
+                <th rowspan="2" style="text-align:right">Repair</th>
+              </tr>
+              <tr>
+                <th style="text-align:right">Other Division</th><th style="text-align:right">Other Workshop</th>
+                <th style="text-align:right">New</th><th style="text-align:right">Old</th>
+              </tr>
+            </thead>
+            <tbody id="wsConsTableBody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3">TOTAL (All Sizes)</td>
+                <td class="num" id="wsTotOpen">0.00</td>
+                <td class="num" id="wsTotRecv">0.00</td>
+                <td class="num" id="wsTotIssueDiv">0.00</td>
+                <td class="num" id="wsTotIssueWs">0.00</td>
+                <td class="num" id="wsTotTotal">0.00</td>
+                <td class="num" id="wsTotConsNew">0.00</td>
+                <td class="num" id="wsTotConsOld">0.00</td>
+                <td class="num" id="wsTotBalance">0.00</td>
+                <td class="num" id="wsTotRepair">0.00</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
     <div class="panel" id="panel-combined">
       <div class="card">
         <h2>Select Period</h2>
@@ -444,6 +494,46 @@
             <tfoot><tr><td colspan="3">TOTAL (All Sizes, All Workers)</td>
               <td class="num" id="cbTotOpen">0.00</td><td class="num" id="cbTotRecv">0.00</td>
               <td class="num" id="cbTotIssue">0.00</td><td class="num" id="cbTotClose">0.00</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Wire &amp; Strip Consumption Report — <span id="cbWsHeading">All Workers Combined</span></h2>
+        <div class="note" style="margin-bottom:10px">Upar diya gaya Month/Year aur "View" (dropdown) dono table ke liye common hain — worker chuniye ya "All Workers Combined" rakhiye.</div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2">Category</th><th rowspan="2">Item Name (Size)</th><th rowspan="2">Unit</th>
+                <th rowspan="2" style="text-align:right">Opening</th>
+                <th rowspan="2" style="text-align:right">Receive</th>
+                <th colspan="2">Issue</th>
+                <th rowspan="2" style="text-align:right">Total</th>
+                <th colspan="2">Consumed</th>
+                <th rowspan="2" style="text-align:right">Balance</th>
+                <th rowspan="2" style="text-align:right">Repair</th>
+              </tr>
+              <tr>
+                <th style="text-align:right">Other Division</th><th style="text-align:right">Other Workshop</th>
+                <th style="text-align:right">New</th><th style="text-align:right">Old</th>
+              </tr>
+            </thead>
+            <tbody id="cbWsConsTableBody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3">TOTAL (All Sizes)</td>
+                <td class="num" id="cbWsTotOpen">0.00</td>
+                <td class="num" id="cbWsTotRecv">0.00</td>
+                <td class="num" id="cbWsTotIssueDiv">0.00</td>
+                <td class="num" id="cbWsTotIssueWs">0.00</td>
+                <td class="num" id="cbWsTotTotal">0.00</td>
+                <td class="num" id="cbWsTotConsNew">0.00</td>
+                <td class="num" id="cbWsTotConsOld">0.00</td>
+                <td class="num" id="cbWsTotBalance">0.00</td>
+                <td class="num" id="cbWsTotRepair">0.00</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -496,6 +586,9 @@ const DEFAULT_ITEMS = [
 let itemMaster = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit,opening:0}));
 let receives = [];
 let issues = [];
+// Monthly Wire & Strip Consumption entries (Excel-style report), one record
+// per item per month: { item, month, year, issueOtherDivision, issueOtherWorkshop, consumedNew, consumedOld, repair }
+let wsConsumption = [];
 let accessToken = null;
 let fileId = null;
 let folderId = null;
@@ -633,7 +726,7 @@ async function fullSyncData() {
     if (!isWsStdEditing) tasks.push(loadWsStandards().then(s => { wsStandards = s; }));
     await Promise.all(tasks);
 
-    if (!isAdmin) renderDashboard();
+    if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
     renderReceiveLog();
     renderIssueLog();
     if (!isWsStdEditing) renderWsStdTable(false);
@@ -720,6 +813,7 @@ async function ensureFolderAndFile(){
   // XEN SPECIFIC CONFIGURATION: Hide Dashboard, Keep Receive/Issue Visible
   if (isAdmin){
     $('tab-dashboard').classList.add('app-hidden'); 
+    $('tab-wsconsumption').classList.add('app-hidden');
     $('tab-receive').classList.remove('app-hidden'); 
     $('tab-issue').classList.remove('app-hidden');   
     
@@ -746,6 +840,7 @@ async function loadFromDrive(){
     (data.itemMaster||[]).forEach(it=>{ savedOpenings[it.name] = num(it.opening); });
     if (data.receives) receives = data.receives;
     if (data.issues) issues = data.issues;
+    if (data.wsConsumption) wsConsumption = data.wsConsumption;
   }
 
   let allItems = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit}));
@@ -904,7 +999,7 @@ function initWsStdUI(){
 
 async function saveToDrive(){
   setStatus('saving', 'Saving…');
-  const payload = JSON.stringify({ itemMaster, receives, issues, savedAt: new Date().toISOString() });
+  const payload = JSON.stringify({ itemMaster, receives, issues, wsConsumption, savedAt: new Date().toISOString() });
   const metadata = { name: myDataFileName(), parents: fileId ? undefined : [folderId] };
   const boundary = 'wsboundary';
   const body =
@@ -1003,6 +1098,14 @@ function initUI(){
   $('isDate').value = today.toISOString().slice(0,10);
   syncPeriodFromMonthYear('dbMonth','dbYear','dbFrom','dbTo');
 
+  const wsSel = $('wsMonth'); wsSel.innerHTML='';
+  MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; wsSel.appendChild(o); });
+  $('wsMonth').value = today.getMonth()+1;
+  $('wsYear').value = today.getFullYear();
+  ['wsMonth','wsYear'].forEach(id=>{
+    $(id).addEventListener('change', renderWsConsumptionTable);
+  });
+
   fillItemSelect($('lookupItem'));
   fillItemSelect($('recItem'));
   fillItemSelect($('isItem'));
@@ -1065,7 +1168,7 @@ function initUI(){
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
     receives.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('recQty').value=''; $('recRemarks').value='';
-    renderReceiveLog(); if (!isAdmin) renderDashboard();
+    renderReceiveLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
     showToast('recv', `${item} — ${fmt(num(qty))} qty`);
   });
   $('isAddBtn').addEventListener('click', () => {
@@ -1073,7 +1176,7 @@ function initUI(){
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
     issues.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('isQty').value=''; $('isRemarks').value='';
-    renderIssueLog(); if (!isAdmin) renderDashboard();
+    renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
     showToast('issue', `${item} — ${fmt(num(qty))} qty`);
   });
 
@@ -1083,7 +1186,7 @@ function initUI(){
   $('pasteImportBtn') && $('pasteImportBtn').addEventListener('click', handlePasteImport);
   initWsStdUI();
 
-  renderMaster(); renderReceiveLog(); renderIssueLog(); if (!isAdmin) renderDashboard();
+  renderMaster(); renderReceiveLog(); renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
 }
 
 function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
@@ -1120,7 +1223,7 @@ function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
     const filtered = arr.filter(x=> !ids.includes(x.id));
     if (prefix==='rec') receives = filtered; else issues = filtered;
     selectAllChk.checked = false;
-    queueSave(); renderFn(); if (!isAdmin) renderDashboard();
+    queueSave(); renderFn(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
     showToast('del', `${ids.length} entry removed`);
   });
   window['_refresh'+prefix+'Btns'] = refreshBtnStates;
@@ -1172,6 +1275,162 @@ function renderStockTable(tbodyId, fromDate, toDate, data){
   return { tOpen, tRecv, tIssue, tClose };
 }
 
+/* =========================================================
+   WIRE & STRIP CONSUMPTION — Excel-style monthly report.
+   Opening Balance for any month = Item Master's Initial Opening
+   + all Receives before that month − all Issue/Consumed logged
+   in wsConsumption before that month. So each month's Balance
+   automatically becomes next month's Opening — no manual carry
+   forward needed.
+   ========================================================= */
+function computeWsRecord(itemName, month, year, data){
+  data = data || { wsConsumption };
+  const rec = (data.wsConsumption||[]).find(r=>r.item===itemName && r.month===month && r.year===year);
+  return rec ? {
+    issueOtherDivision: num(rec.issueOtherDivision), issueOtherWorkshop: num(rec.issueOtherWorkshop),
+    consumedNew: num(rec.consumedNew), consumedOld: num(rec.consumedOld), repair: num(rec.repair)
+  } : { issueOtherDivision:0, issueOtherWorkshop:0, consumedNew:0, consumedOld:0, repair:0 };
+}
+
+function computeWsOpening(itemName, month, year, data){
+  data = data || { itemMaster, receives, wsConsumption };
+  const base = (data.itemMaster||[]).filter(i=>i.name===itemName).reduce((s,i)=>s+num(i.opening),0);
+  const startOfMonth = new Date(year, month-1, 1);
+  let recvBefore = 0;
+  (data.receives||[]).forEach(r=>{ if(r.item!==itemName) return; if (new Date(r.date) < startOfMonth) recvBefore += num(r.qty); });
+  let outflowBefore = 0;
+  (data.wsConsumption||[]).forEach(r=>{
+    if (r.item!==itemName) return;
+    if (r.year < year || (r.year === year && r.month < month)){
+      outflowBefore += num(r.issueOtherDivision)+num(r.issueOtherWorkshop)+num(r.consumedNew)+num(r.consumedOld);
+    }
+  });
+  return base + recvBefore - outflowBefore;
+}
+
+function computeWsReceived(itemName, month, year, data){
+  data = data || { receives };
+  const startOfMonth = new Date(year, month-1, 1);
+  const endExclusive = new Date(year, month, 1);
+  let received = 0;
+  (data.receives||[]).forEach(r=>{
+    if (r.item!==itemName) return;
+    const d = new Date(r.date);
+    if (d>=startOfMonth && d<endExclusive) received += num(r.qty);
+  });
+  return received;
+}
+
+function buildWsRow(itemName, month, year, data){
+  const opening = computeWsOpening(itemName, month, year, data);
+  const received = computeWsReceived(itemName, month, year, data);
+  const total = opening + received;
+  const rec = computeWsRecord(itemName, month, year, data);
+  const outflow = rec.issueOtherDivision + rec.issueOtherWorkshop + rec.consumedNew + rec.consumedOld;
+  const balance = total - outflow;
+  return { opening, received, total, rec, balance };
+}
+
+function upsertWsRecord(itemName, month, year, patch){
+  let rec = wsConsumption.find(r=>r.item===itemName && r.month===month && r.year===year);
+  if (!rec){
+    rec = { item: itemName, month, year, issueOtherDivision:0, issueOtherWorkshop:0, consumedNew:0, consumedOld:0, repair:0 };
+    wsConsumption.push(rec);
+  }
+  Object.assign(rec, patch);
+}
+
+function renderWsConsumptionTable(){
+  const month = parseInt($('wsMonth').value,10), year = parseInt($('wsYear').value,10);
+  if (!month || !year) return;
+  $('wsPeriodLabel').textContent = MONTHS[month-1] + ' ' + year;
+  const tbody = $('wsConsTableBody'); tbody.innerHTML = '';
+  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0, repair:0 };
+
+  itemMaster.forEach(it=>{
+    const row = buildWsRow(it.name, month, year);
+    t.open+=row.opening; t.recv+=row.received; t.div+=row.rec.issueOtherDivision; t.ws+=row.rec.issueOtherWorkshop;
+    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance; t.repair+=row.rec.repair;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
+      <td class="num">${fmt(row.opening)}</td>
+      <td class="num">${fmt(row.received)}</td>
+      <td><input type="number" step="0.01" value="${row.rec.issueOtherDivision||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="issueOtherDivision" style="width:100px;text-align:right"></td>
+      <td><input type="number" step="0.01" value="${row.rec.issueOtherWorkshop||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="issueOtherWorkshop" style="width:100px;text-align:right"></td>
+      <td class="num" style="font-weight:700">${fmt(row.total)}</td>
+      <td><input type="number" step="0.01" value="${row.rec.consumedNew||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="consumedNew" style="width:90px;text-align:right"></td>
+      <td><input type="number" step="0.01" value="${row.rec.consumedOld||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="consumedOld" style="width:90px;text-align:right"></td>
+      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>
+      <td><input type="number" step="0.01" value="${row.rec.repair||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="repair" style="width:90px;text-align:right"></td>`;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.wsInput').forEach(inp=>{
+    inp.addEventListener('change', (e)=>{
+      const itemName = e.target.dataset.item, field = e.target.dataset.field;
+      upsertWsRecord(itemName, month, year, { [field]: num(e.target.value) });
+      queueSave();
+      renderWsConsumptionTable();
+    });
+  });
+
+  $('wsTotOpen').textContent=fmt(t.open); $('wsTotRecv').textContent=fmt(t.recv);
+  $('wsTotIssueDiv').textContent=fmt(t.div); $('wsTotIssueWs').textContent=fmt(t.ws);
+  $('wsTotTotal').textContent=fmt(t.total); $('wsTotConsNew').textContent=fmt(t.cNew);
+  $('wsTotConsOld').textContent=fmt(t.cOld); $('wsTotBalance').textContent=fmt(t.bal);
+  $('wsTotRepair').textContent=fmt(t.repair);
+}
+
+function renderCombinedWsConsumption(){
+  if (!$('cbWsConsTableBody')) return;
+  const month = parseInt($('cbMonth').value,10), year = parseInt($('cbYear').value,10);
+  if (!month || !year) return;
+
+  const selectedFile = $('cbWorkerSelect') ? $('cbWorkerSelect').value : '__all__';
+  const workersToUse = selectedFile === '__all__' ? compiledWorkers : compiledWorkers.filter(w => w.fileName === selectedFile);
+  const merged = { itemMaster: [], receives: [], wsConsumption: [] };
+  workersToUse.forEach(w=>{
+    merged.itemMaster.push(...w.itemMaster);
+    merged.receives.push(...w.receives);
+    merged.wsConsumption.push(...(w.wsConsumption||[]));
+  });
+
+  $('cbWsHeading').textContent = selectedFile === '__all__' ? 'All Workers Combined' : workerLabelFromFileName(selectedFile);
+
+  // Unique item list across the selected worker(s)
+  const items = [];
+  merged.itemMaster.forEach(it=>{ if (!items.some(x=>x.name===it.name)) items.push(it); });
+
+  const tbody = $('cbWsConsTableBody'); tbody.innerHTML = '';
+  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0, repair:0 };
+
+  items.forEach(it=>{
+    const row = buildWsRow(it.name, month, year, merged);
+    t.open+=row.opening; t.recv+=row.received; t.div+=row.rec.issueOtherDivision; t.ws+=row.rec.issueOtherWorkshop;
+    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance; t.repair+=row.rec.repair;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
+      <td class="num">${fmt(row.opening)}</td>
+      <td class="num">${fmt(row.received)}</td>
+      <td class="num">${fmt(row.rec.issueOtherDivision)}</td>
+      <td class="num">${fmt(row.rec.issueOtherWorkshop)}</td>
+      <td class="num" style="font-weight:700">${fmt(row.total)}</td>
+      <td class="num">${fmt(row.rec.consumedNew)}</td>
+      <td class="num">${fmt(row.rec.consumedOld)}</td>
+      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>
+      <td class="num">${fmt(row.rec.repair)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  $('cbWsTotOpen').textContent=fmt(t.open); $('cbWsTotRecv').textContent=fmt(t.recv);
+  $('cbWsTotIssueDiv').textContent=fmt(t.div); $('cbWsTotIssueWs').textContent=fmt(t.ws);
+  $('cbWsTotTotal').textContent=fmt(t.total); $('cbWsTotConsNew').textContent=fmt(t.cNew);
+  $('cbWsTotConsOld').textContent=fmt(t.cOld); $('cbWsTotBalance').textContent=fmt(t.bal);
+  $('cbWsTotRepair').textContent=fmt(t.repair);
+}
+
 function lastDayOfMonth(year, month){ return new Date(year, month, 0).getDate(); }
 
 function syncPeriodFromMonthYear(monthSelId, yearInpId, fromInpId, toInpId){
@@ -1219,7 +1478,7 @@ async function refreshCombined(){
       try{
         const d = await (await driveFetch(`${DRIVE_API}/files/${f.id}?alt=media`)).json();
         return { fileName: f.name, label: workerLabelFromFileName(f.name),
-          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[] };
+          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[], wsConsumption: d.wsConsumption||[] };
       }catch(e){ console.warn('Could not read', f.name, e); return null; }
     }));
 
@@ -1274,6 +1533,8 @@ function renderCombined(){
   const t = renderStockTable('cbTableBody', from, to, merged);
   $('cbTotOpen').textContent=fmt(t.tOpen); $('cbTotRecv').textContent=fmt(t.tRecv);
   $('cbTotIssue').textContent=fmt(t.tIssue); $('cbTotClose').textContent=fmt(t.tClose);
+
+  renderCombinedWsConsumption();
 }
 
 function renderMaster(){
@@ -1287,7 +1548,7 @@ function renderMaster(){
   tbody.querySelectorAll('.masterInput').forEach(inp=>{
     inp.addEventListener('change', (e)=>{
       itemMaster[parseInt(e.target.dataset.idx,10)].opening = num(e.target.value);
-      queueSave(); if (!isAdmin) renderDashboard();
+      queueSave(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
     });
   });
 }
@@ -1374,7 +1635,7 @@ async function handlePasteImport(){
 
   fillItemSelect($('lookupItem')); fillItemSelect($('recItem')); fillItemSelect($('isItem'));
   renderMaster();
-  if (!isAdmin) renderDashboard();
+  if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
   queueSave();
 
   if (statusEl){
@@ -1437,7 +1698,7 @@ function renderReceiveLog(){
     const entry = receives.find(r=>r.id===id);
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingReceiveId = null;
-    queueSave(); renderReceiveLog(); if (!isAdmin) renderDashboard();
+    queueSave(); renderReceiveLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
     showToast('update', `${item} — ${fmt(qty)} qty`);
   }));
   $('recSelectAll').checked = false;
@@ -1487,7 +1748,7 @@ function renderIssueLog(){
     const entry = issues.find(r=>r.id===id);
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingIssueId = null;
-    queueSave(); renderIssueLog(); if (!isAdmin) renderDashboard();
+    queueSave(); renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); }
     showToast('update', `${item} — ${fmt(qty)} qty`);
   }));
   $('isSelectAll').checked = false;
