@@ -601,7 +601,10 @@ window.addEventListener('load', () => {
   if (signInBtn){
     signInBtn.addEventListener('click', () => {
       $('gsiErrBox') && $('gsiErrBox').classList.add('app-hidden');
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      // Pehli baar consent zaroori hai, lekin uske baad har login pe poora
+      // permission screen dobara dikhana hi sabse bada slow-down tha — ab
+      // Google jab bhi possible ho silently/turant sign in kar dega.
+      tokenClient.requestAccessToken({ prompt: '' });
     });
   }
 });
@@ -622,15 +625,18 @@ async function fullSyncData() {
   if (!accessToken || isSyncing) return;
   isSyncing = true;
   try {
-    await loadFromDrive();
-    if (SHARED_FOLDER_ID) await refreshCombined();
+    // Sirf XEN (admin) ko hi "All Workers Combined" data chahiye — normal worker
+    // ke liye har 3s me sabki files fetch karna hi login/refresh dheema kar raha
+    // tha. Baaki independent calls bhi ab parallel (Promise.all) chal rahe hain.
+    const tasks = [loadFromDrive()];
+    if (SHARED_FOLDER_ID && isAdmin) tasks.push(refreshCombined());
+    if (!isWsStdEditing) tasks.push(loadWsStandards().then(s => { wsStandards = s; }));
+    await Promise.all(tasks);
+
     if (!isAdmin) renderDashboard();
     renderReceiveLog();
     renderIssueLog();
-    if (!isWsStdEditing){
-      wsStandards = await loadWsStandards();
-      renderWsStdTable(false);
-    }
+    if (!isWsStdEditing) renderWsStdTable(false);
     setStatus(null, 'Saved to Drive (Live 3s)');
   } catch(e) {
     console.error('Full sync error:', e);
@@ -726,23 +732,26 @@ async function ensureFolderAndFile(){
 
 async function loadFromDrive(){
   let savedOpenings = {};
-  if (fileId){
-    try{
-      const r = await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`);
-      const data = await r.json();
-      (data.itemMaster||[]).forEach(it=>{ savedOpenings[it.name] = num(it.opening); });
-      if (data.receives) receives = data.receives;
-      if (data.issues) issues = data.issues;
-    }catch(e){ console.warn('Load failed', e); }
+
+  // Apni file aur shared custom-items file ek saath (parallel) fetch karo,
+  // sequential await se login/refresh dheema ho raha tha.
+  const ownFilePromise = fileId
+    ? driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`).then(r=>r.json()).catch(e=>{ console.warn('Load failed', e); return null; })
+    : Promise.resolve(null);
+  const customItemsPromise = SHARED_FOLDER_ID ? loadCustomItems() : Promise.resolve([]);
+
+  const [data, customItems] = await Promise.all([ownFilePromise, customItemsPromise]);
+
+  if (data){
+    (data.itemMaster||[]).forEach(it=>{ savedOpenings[it.name] = num(it.opening); });
+    if (data.receives) receives = data.receives;
+    if (data.issues) issues = data.issues;
   }
 
   let allItems = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit}));
-  if (SHARED_FOLDER_ID){
-    const customItems = await loadCustomItems();
-    customItems.forEach(ci=>{
-      if (!allItems.some(x=>x.name===ci.name)) allItems.push(ci);
-    });
-  }
+  customItems.forEach(ci=>{
+    if (!allItems.some(x=>x.name===ci.name)) allItems.push(ci);
+  });
   // Opening Balance stays separate per worker — everyone fills their own once
   // in the Item Master tab; "Received" always comes from that worker's own
   // Receive Entry tab, month by month.
