@@ -134,6 +134,19 @@
   .ws-grid tfoot td{border-right:1px solid rgba(255,255,255,.2);}
   .ws-grid tfoot td:last-child{border-right:none;}
 
+  /* Compact horizontal "capacity across the top" tables — Repair Standards
+     and Transformer Repaired, matching XEN's Excel layout. */
+  .cap-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .cap-table th,.cap-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
+  .cap-table thead th{background:var(--navy);color:#fff;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;}
+  .cap-table td.label,.cap-table th.label{text-align:left;font-weight:700;color:var(--navy-2);white-space:nowrap;background:var(--steel-light);}
+  .cap-table thead th.label{background:var(--navy);color:#fff;}
+  .cap-table td.total,.cap-table th.total{background:var(--steel-light);font-weight:700;}
+  .cap-table thead th.total{background:var(--amber);color:#fff;}
+  .cap-table input{width:100%;text-align:center;border:none;background:transparent;padding:2px;font-family:var(--mono);font-size:12.5px;}
+  .cap-table input:focus{outline:2px solid var(--amber);background:#fff;border-radius:4px;}
+  .cap-table input:disabled{color:var(--navy);}
+
   .cat-pill{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--steel-light);color:var(--navy-2);}
 
   .note{font-size:11.5px;color:var(--text-mute);margin-top:10px;line-height:1.5;}
@@ -411,8 +424,10 @@
           <button class="btn outline small" id="wsStdUnlockBtn" type="button">🔓 Change STD</button>
         </div>
         <div class="table-scroll" style="max-height:220px;margin-top:8px">
-          <table class="ws-grid" style="font-size:12px">
-            <thead><tr><th style="padding:6px 8px">Capacity</th><th style="text-align:right;padding:6px 8px">Strip (KG)</th><th style="text-align:right;padding:6px 8px">Wire (KG)</th></tr></thead>
+          <table class="cap-table">
+            <thead>
+              <tr><th class="label">Capacity (KVA)</th><th>10</th><th>16</th><th>25</th><th>63</th><th>100</th><th>160</th><th>250</th></tr>
+            </thead>
             <tbody id="wsStdTableBody"></tbody>
           </table>
         </div>
@@ -422,14 +437,36 @@
         </div>
         <div class="note" style="margin-top:8px;font-size:11px;line-height:1.5">According to std. wire strip can be used (85%). It can be increase if old wire and strip are not used.</div>
       </div>
-      <div class="card">
-        <h2>Select Month</h2>
+      <div class="card" style="padding:14px 16px">
+        <h2 style="margin:0 0 10px;font-size:14px">Select Month</h2>
         <div class="row">
           <div class="field"><label>Month</label><select id="wsMonth"></select></div>
           <div class="field"><label>Year</label><input type="number" id="wsYear" min="2020" max="2100" style="width:100px"></div>
           <div class="period-line">Showing: <b id="wsPeriodLabel">—</b></div>
         </div>
-        <div class="yellow-hint">Opening Balance apne aap pichhle month ke Balance se aa jayega, lekin chahe to <b>khud bhi badal (type kar) sakte hain</b>. <b>Receive</b> column "Receive Entry" tab se apne aap aata hai, use bhi zaroorat pade to change kar sakte hain. Baaki <b>Issue to Other Division</b>, <b>Issue to Other Workshop</b>, <b>Consumed (New/Old)</b> aur <b>Repair</b> khud bharein.</div>
+      </div>
+      <div class="card" style="padding:14px 16px">
+        <h2 style="margin:0 0 10px;font-size:14px">🛠️ Transformer Repaired — This Month</h2>
+        <div class="table-scroll">
+          <table class="cap-table" id="wsRepairTable">
+            <thead>
+              <tr><th class="label">Capacity in KVA</th><th>10</th><th>16</th><th>25</th><th>63</th><th>100</th><th>160</th><th>250</th><th class="total">Total</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label">Transformer Repaired</td>
+                <td><input type="number" min="0" step="1" id="wsRep_10" class="wsRepInput" data-cap="10" placeholder="0"></td>
+                <td><input type="number" min="0" step="1" id="wsRep_16" class="wsRepInput" data-cap="16" placeholder="0"></td>
+                <td><input type="number" min="0" step="1" id="wsRep_25" class="wsRepInput" data-cap="25" placeholder="0"></td>
+                <td><input type="number" min="0" step="1" id="wsRep_63" class="wsRepInput" data-cap="63" placeholder="0"></td>
+                <td><input type="number" min="0" step="1" id="wsRep_100" class="wsRepInput" data-cap="100" placeholder="0"></td>
+                <td><input type="number" min="0" step="1" id="wsRep_160" class="wsRepInput" data-cap="160" placeholder="0"></td>
+                <td><input type="number" min="0" step="1" id="wsRep_250" class="wsRepInput" data-cap="250" placeholder="0"></td>
+                <td class="total" id="wsRepTotal">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <div class="card">
         <h2>Wire &amp; Strip Consumption Report</h2>
@@ -444,7 +481,6 @@
                 <th rowspan="2" style="text-align:right">Total</th>
                 <th colspan="2">Consumed</th>
                 <th rowspan="2" style="text-align:right">Balance</th>
-                <th rowspan="2" style="text-align:right">Repair</th>
               </tr>
               <tr>
                 <th style="text-align:right">Other Division</th><th style="text-align:right">Other Workshop</th>
@@ -463,7 +499,6 @@
                 <td class="num" id="wsTotConsNew">0.00</td>
                 <td class="num" id="wsTotConsOld">0.00</td>
                 <td class="num" id="wsTotBalance">0.00</td>
-                <td class="num" id="wsTotRepair">0.00</td>
               </tr>
             </tfoot>
           </table>
@@ -482,7 +517,25 @@
           <div class="field"><label>To Year</label><input type="number" id="wsSumToYear" min="2020" max="2100" style="width:100px"></div>
           <div class="period-line">Showing: <b id="wsSumPeriodLabel">—</b></div>
         </div>
-        <div class="yellow-hint">Opening Balance hamesha <b>"From" month</b> ka hi dikhega. Baaki sab columns (Receive, Issue, Consumed, Repair) is poori range ka total honge, aur Balance "To" month tak ka final balance hoga.</div>
+        <div class="yellow-hint">Opening Balance hamesha <b>"From" month</b> ka hi dikhega. Baaki sab columns (Receive, Issue, Consumed) is poori range ka total honge, aur Balance "To" month tak ka final balance hoga.</div>
+      </div>
+      <div class="card" style="padding:14px 16px">
+        <h2 style="margin:0 0 10px;font-size:14px">🛠️ Transformer Repaired — Is Range Ka Total</h2>
+        <div class="table-scroll">
+          <table class="cap-table">
+            <thead>
+              <tr><th class="label">Capacity in KVA</th><th>10</th><th>16</th><th>25</th><th>63</th><th>100</th><th>160</th><th>250</th><th class="total">Total</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label">Transformer Repaired</td>
+                <td id="wsSumRep_10">0</td><td id="wsSumRep_16">0</td><td id="wsSumRep_25">0</td>
+                <td id="wsSumRep_63">0</td><td id="wsSumRep_100">0</td><td id="wsSumRep_160">0</td><td id="wsSumRep_250">0</td>
+                <td class="total" id="wsSumRepTotal">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <div class="card">
         <h2>Wire &amp; Strip Consumption Summary</h2>
@@ -497,7 +550,6 @@
                 <th rowspan="2" style="text-align:right">Total</th>
                 <th colspan="2">Consumed</th>
                 <th rowspan="2" style="text-align:right">Balance</th>
-                <th rowspan="2" style="text-align:right">Repair</th>
               </tr>
               <tr>
                 <th style="text-align:right">Other Division</th><th style="text-align:right">Other Workshop</th>
@@ -516,7 +568,6 @@
                 <td class="num" id="wsSumTotConsNew">0.00</td>
                 <td class="num" id="wsSumTotConsOld">0.00</td>
                 <td class="num" id="wsSumTotBalance">0.00</td>
-                <td class="num" id="wsSumTotRepair">0.00</td>
               </tr>
             </tfoot>
           </table>
@@ -566,7 +617,6 @@
                 <th rowspan="2" style="text-align:right">Total</th>
                 <th colspan="2">Consumed</th>
                 <th rowspan="2" style="text-align:right">Balance</th>
-                <th rowspan="2" style="text-align:right">Repair</th>
               </tr>
               <tr>
                 <th style="text-align:right">Other Division</th><th style="text-align:right">Other Workshop</th>
@@ -585,9 +635,27 @@
                 <td class="num" id="cbWsTotConsNew">0.00</td>
                 <td class="num" id="cbWsTotConsOld">0.00</td>
                 <td class="num" id="cbWsTotBalance">0.00</td>
-                <td class="num" id="cbWsTotRepair">0.00</td>
               </tr>
             </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="padding:14px 16px">
+        <h2 style="margin:0 0 10px;font-size:14px">🛠️ Transformer Repaired — <span id="cbRepHeading">This Month</span></h2>
+        <div class="table-scroll">
+          <table class="cap-table">
+            <thead>
+              <tr><th class="label">Capacity in KVA</th><th>10</th><th>16</th><th>25</th><th>63</th><th>100</th><th>160</th><th>250</th><th class="total">Total</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label">Transformer Repaired</td>
+                <td id="cbRep_10">0</td><td id="cbRep_16">0</td><td id="cbRep_25">0</td>
+                <td id="cbRep_63">0</td><td id="cbRep_100">0</td><td id="cbRep_160">0</td><td id="cbRep_250">0</td>
+                <td class="total" id="cbRepTotal">0</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -612,7 +680,6 @@
                 <th rowspan="2" style="text-align:right">Total</th>
                 <th colspan="2">Consumed</th>
                 <th rowspan="2" style="text-align:right">Balance</th>
-                <th rowspan="2" style="text-align:right">Repair</th>
               </tr>
               <tr>
                 <th style="text-align:right">Other Division</th><th style="text-align:right">Other Workshop</th>
@@ -631,9 +698,27 @@
                 <td class="num" id="cbSumTotConsNew">0.00</td>
                 <td class="num" id="cbSumTotConsOld">0.00</td>
                 <td class="num" id="cbSumTotBalance">0.00</td>
-                <td class="num" id="cbSumTotRepair">0.00</td>
               </tr>
             </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="padding:14px 16px">
+        <h2 style="margin:0 0 10px;font-size:14px">🛠️ Transformer Repaired — Is Range Ka Total</h2>
+        <div class="table-scroll">
+          <table class="cap-table">
+            <thead>
+              <tr><th class="label">Capacity in KVA</th><th>10</th><th>16</th><th>25</th><th>63</th><th>100</th><th>160</th><th>250</th><th class="total">Total</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label">Transformer Repaired</td>
+                <td id="cbSumRep_10">0</td><td id="cbSumRep_16">0</td><td id="cbSumRep_25">0</td>
+                <td id="cbSumRep_63">0</td><td id="cbSumRep_100">0</td><td id="cbSumRep_160">0</td><td id="cbSumRep_250">0</td>
+                <td class="total" id="cbSumRepTotal">0</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -683,26 +768,16 @@ const DEFAULT_ITEMS = [
   ["WIRE","D.P.C. WIRE (ALU) 13 SWG.","KG"],
 ];
 
-// REPAIR column, exactly as given in XEN's Excel (K4:K10) — maps the first 7
-// STRIP sizes to their transformer repair capacity (KVA). Used as the default
-// value shown in the Consumption report's Repair column for these items; a
-// worker can still type over it for any month, same as every other field.
-const REPAIR_CAPACITY_MAP = {
-  "DPC ALUM. STRIP 7.1X4.1MM": 10,
-  "DPC ALUM. STRIP 6.6X4.8 MM": 16,
-  "DPC ALUM. STRIP 7X3 MM": 25,
-  "DPC ALUM. STRIP 8X2.75 MM": 63,
-  "DPC ALUM. STRIP 7X4 MM": 100,
-  "DPC ALUM. STRIP 8X3.5MM": 160,
-  "D.P.C. STRIP (ALU) 10X4 M.M.": 250,
-};
-
 let itemMaster = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit,opening:0}));
 let receives = [];
 let issues = [];
 // Monthly Wire & Strip Consumption entries (Excel-style report), one record
-// per item per month: { item, month, year, issueOtherDivision, issueOtherWorkshop, consumedNew, consumedOld, repair }
+// per item per month: { item, month, year, issueOtherDivision, issueOtherWorkshop, consumedNew, consumedOld }
 let wsConsumption = [];
+// Monthly "Transformer Repaired" counts, one record per month (not per item) —
+// { month, year, counts:{10,16,25,63,100,160,250} } — matching XEN's Excel
+// "capacity in kva" row layout.
+let wsRepair = [];
 let accessToken = null;
 let fileId = null;
 let folderId = null;
@@ -840,7 +915,7 @@ async function fullSyncData() {
     if (!isWsStdEditing) tasks.push(loadWsStandards().then(s => { wsStandards = s; }));
     await Promise.all(tasks);
 
-    if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+    if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
     renderReceiveLog();
     renderIssueLog();
     if (!isWsStdEditing) renderWsStdTable(false);
@@ -956,6 +1031,7 @@ async function loadFromDrive(){
     if (data.receives) receives = data.receives;
     if (data.issues) issues = data.issues;
     if (data.wsConsumption) wsConsumption = data.wsConsumption;
+    if (data.wsRepair) wsRepair = data.wsRepair;
   }
 
   let allItems = DEFAULT_ITEMS.map(([category,name,unit])=>({category,name,unit}));
@@ -1064,14 +1140,13 @@ function renderWsStdTable(editable){
   const tbody = $('wsStdTableBody');
   if (!tbody) return;
   const std = wsStandards || DEFAULT_WS_STANDARDS;
-  tbody.innerHTML = '';
-  WS_STD_CAPACITIES.forEach(cap=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${cap} KVA</td>
-      <td><input type="number" step="0.01" id="wsStd_strip_${cap}" value="${std.strip[cap]||0}" style="width:110px;text-align:right" ${editable?'':'disabled'}></td>
-      <td><input type="number" step="0.01" id="wsStd_wire_${cap}" value="${std.wire[cap]||0}" style="width:110px;text-align:right" ${editable?'':'disabled'}></td>`;
-    tbody.appendChild(tr);
-  });
+  const stripCells = WS_STD_CAPACITIES.map(cap =>
+    `<td><input type="number" step="0.01" id="wsStd_strip_${cap}" value="${std.strip[cap]||0}" ${editable?'':'disabled'}></td>`).join('');
+  const wireCells = WS_STD_CAPACITIES.map(cap =>
+    `<td><input type="number" step="0.01" id="wsStd_wire_${cap}" value="${std.wire[cap]||0}" ${editable?'':'disabled'}></td>`).join('');
+  tbody.innerHTML = `
+    <tr><td class="label">Strip Std (KG)</td>${stripCells}</tr>
+    <tr><td class="label">Wire Std (KG)</td>${wireCells}</tr>`;
 }
 
 function initWsStdUI(){
@@ -1112,9 +1187,106 @@ function initWsStdUI(){
 }
 
 
+/* =========================================================
+   TRANSFORMER REPAIRED — one row per month (not per item), capacity-wise,
+   matching XEN's Excel "capacity in kva / transformer repaired" layout.
+   ========================================================= */
+function getWsRepairRecord(month, year, data){
+  data = data || { wsRepair };
+  const rec = (data.wsRepair||[]).find(r=>r.month===month && r.year===year);
+  const counts = {};
+  WS_STD_CAPACITIES.forEach(cap=>{ counts[cap] = num(rec && rec.counts && rec.counts[cap]); });
+  return counts;
+}
+
+function sumWsRepairCounts(counts){
+  return WS_STD_CAPACITIES.reduce((s,cap)=> s + num(counts[cap]), 0);
+}
+
+function upsertWsRepairCount(month, year, cap, value){
+  let rec = wsRepair.find(r=>r.month===month && r.year===year);
+  if (!rec){
+    rec = { month, year, counts:{} };
+    wsRepair.push(rec);
+  }
+  if (!rec.counts) rec.counts = {};
+  rec.counts[cap] = value;
+}
+
+function renderWsRepairTable(){
+  const monthEl = $('wsMonth'), yearEl = $('wsYear');
+  if (!monthEl || !yearEl || !$('wsRepTotal')) return;
+  const month = parseInt(monthEl.value,10), year = parseInt(yearEl.value,10);
+  if (!month || !year) return;
+  const counts = getWsRepairRecord(month, year);
+  WS_STD_CAPACITIES.forEach(cap=>{
+    const inp = $('wsRep_'+cap);
+    if (inp && document.activeElement !== inp) inp.value = counts[cap] || '';
+  });
+  $('wsRepTotal').textContent = fmt(sumWsRepairCounts(counts));
+}
+
+function renderWsRepairSummaryTable(){
+  if (!$('wsSumRepTotal')) return;
+  const fromMonth = parseInt($('wsSumFromMonth').value,10), fromYear = parseInt($('wsSumFromYear').value,10);
+  const toMonth = parseInt($('wsSumToMonth').value,10), toYear = parseInt($('wsSumToYear').value,10);
+  if (!fromMonth || !fromYear || !toMonth || !toYear) return;
+  const months = wsMonthsInRange(fromMonth, fromYear, toMonth, toYear);
+  const totals = {}; WS_STD_CAPACITIES.forEach(cap=> totals[cap]=0);
+  months.forEach(m=>{
+    const counts = getWsRepairRecord(m.month, m.year);
+    WS_STD_CAPACITIES.forEach(cap=> totals[cap] += counts[cap]);
+  });
+  WS_STD_CAPACITIES.forEach(cap=>{ const el = $('wsSumRep_'+cap); if (el) el.textContent = fmt(totals[cap]); });
+  $('wsSumRepTotal').textContent = fmt(sumWsRepairCounts(totals));
+}
+
+function renderCombinedWsRepair(mergedData, month, year){
+  if (!$('cbRepTotal')) return;
+  const counts = getWsRepairRecordCombined(mergedData, month, year);
+  WS_STD_CAPACITIES.forEach(cap=>{ const el = $('cbRep_'+cap); if (el) el.textContent = fmt(counts[cap]); });
+  $('cbRepTotal').textContent = fmt(sumWsRepairCounts(counts));
+}
+
+function getWsRepairRecordCombined(mergedData, month, year){
+  const totals = {}; WS_STD_CAPACITIES.forEach(cap=> totals[cap]=0);
+  (mergedData.wsRepair||[]).forEach(r=>{
+    if (r.month!==month || r.year!==year) return;
+    WS_STD_CAPACITIES.forEach(cap=> totals[cap] += num(r.counts && r.counts[cap]));
+  });
+  return totals;
+}
+
+function renderCombinedWsRepairSummary(mergedData, fromMonth, fromYear, toMonth, toYear){
+  if (!$('cbSumRepTotal')) return;
+  const months = wsMonthsInRange(fromMonth, fromYear, toMonth, toYear);
+  const totals = {}; WS_STD_CAPACITIES.forEach(cap=> totals[cap]=0);
+  months.forEach(m=>{
+    const counts = getWsRepairRecordCombined(mergedData, m.month, m.year);
+    WS_STD_CAPACITIES.forEach(cap=> totals[cap] += counts[cap]);
+  });
+  WS_STD_CAPACITIES.forEach(cap=>{ const el = $('cbSumRep_'+cap); if (el) el.textContent = fmt(totals[cap]); });
+  $('cbSumRepTotal').textContent = fmt(sumWsRepairCounts(totals));
+}
+
+function initWsRepairUI(){
+  document.querySelectorAll('.wsRepInput').forEach(inp=>{
+    inp.addEventListener('change', (e)=>{
+      const cap = e.target.dataset.cap;
+      const month = parseInt($('wsMonth').value,10), year = parseInt($('wsYear').value,10);
+      if (!month || !year) return;
+      const val = e.target.value === '' ? 0 : num(e.target.value);
+      upsertWsRepairCount(month, year, cap, val);
+      queueSave();
+      renderWsRepairTable();
+    });
+  });
+}
+
+
 async function saveToDrive(){
   setStatus('saving', 'Saving…');
-  const payload = JSON.stringify({ itemMaster, receives, issues, wsConsumption, savedAt: new Date().toISOString() });
+  const payload = JSON.stringify({ itemMaster, receives, issues, wsConsumption, wsRepair, savedAt: new Date().toISOString() });
   const metadata = { name: myDataFileName(), parents: fileId ? undefined : [folderId] };
   const boundary = 'wsboundary';
   const body =
@@ -1218,7 +1390,7 @@ function initUI(){
   $('wsMonth').value = today.getMonth()+1;
   $('wsYear').value = today.getFullYear();
   ['wsMonth','wsYear'].forEach(id=>{
-    $(id).addEventListener('change', renderWsConsumptionTable);
+    $(id).addEventListener('change', ()=>{ renderWsConsumptionTable(); renderWsRepairTable(); });
   });
 
   ['wsSumFromMonth','wsSumToMonth'].forEach(id=>{
@@ -1230,7 +1402,7 @@ function initUI(){
   $('wsSumToMonth').value = today.getMonth()+1;
   $('wsSumToYear').value = today.getFullYear();
   ['wsSumFromMonth','wsSumFromYear','wsSumToMonth','wsSumToYear'].forEach(id=>{
-    $(id).addEventListener('change', renderWsSummaryTable);
+    $(id).addEventListener('change', ()=>{ renderWsSummaryTable(); renderWsRepairSummaryTable(); });
   });
 
   fillItemSelect($('lookupItem'));
@@ -1307,7 +1479,7 @@ function initUI(){
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
     receives.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('recQty').value=''; $('recRemarks').value='';
-    renderReceiveLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+    renderReceiveLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
     showToast('recv', `${item} — ${fmt(num(qty))} qty`);
   });
   $('isAddBtn').addEventListener('click', () => {
@@ -1315,7 +1487,7 @@ function initUI(){
     if(!date||!item||!qty||num(qty)<=0){ alert('Date, Item aur valid Quantity zaroori hai.'); return; }
     issues.push({id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, item, qty:num(qty), remarks});
     queueSave(); $('isQty').value=''; $('isRemarks').value='';
-    renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+    renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
     showToast('issue', `${item} — ${fmt(num(qty))} qty`);
   });
 
@@ -1323,8 +1495,9 @@ function initUI(){
   setupSelectDeleteBar('is', issues, renderIssueLog, ()=>editingIssueId, v=>editingIssueId=v);
 
   initWsStdUI();
+  initWsRepairUI();
 
-  renderMaster(); renderReceiveLog(); renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+  renderMaster(); renderReceiveLog(); renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
 }
 
 function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
@@ -1361,7 +1534,7 @@ function setupSelectDeleteBar(prefix, arrRef, renderFn, getEditing, setEditing){
     const filtered = arr.filter(x=> !ids.includes(x.id));
     if (prefix==='rec') receives = filtered; else issues = filtered;
     selectAllChk.checked = false;
-    queueSave(); renderFn(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+    queueSave(); renderFn(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
     showToast('del', `${ids.length} entry removed`);
   });
   window['_refresh'+prefix+'Btns'] = refreshBtnStates;
@@ -1438,10 +1611,9 @@ function hasOverride(rec, field){
 // Manual fields only (Issue/Consumed/Repair) — always defined with 0 defaults.
 function computeWsRecord(itemName, month, year, data){
   const rec = getWsRecord(itemName, month, year, data);
-  const repair = hasOverride(rec, 'repair') ? num(rec.repair) : (REPAIR_CAPACITY_MAP[itemName] || 0);
   return {
     issueOtherDivision: num(rec && rec.issueOtherDivision), issueOtherWorkshop: num(rec && rec.issueOtherWorkshop),
-    consumedNew: num(rec && rec.consumedNew), consumedOld: num(rec && rec.consumedOld), repair
+    consumedNew: num(rec && rec.consumedNew), consumedOld: num(rec && rec.consumedOld)
   };
 }
 
@@ -1516,21 +1688,21 @@ function wsMonthsInRange(fromMonth, fromYear, toMonth, toYear){
 function buildWsSummaryRow(itemName, fromMonth, fromYear, toMonth, toYear, data){
   const opening = computeWsOpening(itemName, fromMonth, fromYear, data);
   const months = wsMonthsInRange(fromMonth, fromYear, toMonth, toYear);
-  let received=0, div=0, ws=0, cNew=0, cOld=0, repair=0;
+  let received=0, div=0, ws=0, cNew=0, cOld=0;
   months.forEach(m=>{
     received += computeWsReceived(itemName, m.month, m.year, data);
     const r = computeWsRecord(itemName, m.month, m.year, data);
-    div += r.issueOtherDivision; ws += r.issueOtherWorkshop; cNew += r.consumedNew; cOld += r.consumedOld; repair += r.repair;
+    div += r.issueOtherDivision; ws += r.issueOtherWorkshop; cNew += r.consumedNew; cOld += r.consumedOld;
   });
   const total = opening + received;
   const balance = total - (div+ws+cNew+cOld);
-  return { opening, received, rec:{ issueOtherDivision:div, issueOtherWorkshop:ws, consumedNew:cNew, consumedOld:cOld, repair }, total, balance };
+  return { opening, received, rec:{ issueOtherDivision:div, issueOtherWorkshop:ws, consumedNew:cNew, consumedOld:cOld }, total, balance };
 }
 
 function upsertWsRecord(itemName, month, year, patch){
   let rec = wsConsumption.find(r=>r.item===itemName && r.month===month && r.year===year);
   if (!rec){
-    rec = { item: itemName, month, year, issueOtherDivision:0, issueOtherWorkshop:0, consumedNew:0, consumedOld:0, repair:0 };
+    rec = { item: itemName, month, year, issueOtherDivision:0, issueOtherWorkshop:0, consumedNew:0, consumedOld:0 };
     wsConsumption.push(rec);
   }
   Object.assign(rec, patch);
@@ -1541,12 +1713,12 @@ function renderWsConsumptionTable(){
   if (!month || !year) return;
   $('wsPeriodLabel').textContent = MONTHS[month-1] + ' ' + year;
   const tbody = $('wsConsTableBody'); tbody.innerHTML = '';
-  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0, repair:0 };
+  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0 };
 
   itemMaster.forEach(it=>{
     const row = buildWsRow(it.name, month, year);
     t.open+=row.opening; t.recv+=row.received; t.div+=row.rec.issueOtherDivision; t.ws+=row.rec.issueOtherWorkshop;
-    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance; t.repair+=row.rec.repair;
+    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
@@ -1557,8 +1729,7 @@ function renderWsConsumptionTable(){
       <td class="num" style="font-weight:700">${fmt(row.total)}</td>
       <td><input type="number" step="0.01" value="${row.rec.consumedNew||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="consumedNew" style="width:90px;text-align:right"></td>
       <td><input type="number" step="0.01" value="${row.rec.consumedOld||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="consumedOld" style="width:90px;text-align:right"></td>
-      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>
-      <td><input type="number" step="0.01" value="${row.rec.repair||''}" placeholder="0" class="wsInput" data-item="${it.name}" data-field="repair" style="width:90px;text-align:right"></td>`;
+      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -1576,7 +1747,6 @@ function renderWsConsumptionTable(){
   $('wsTotIssueDiv').textContent=fmt(t.div); $('wsTotIssueWs').textContent=fmt(t.ws);
   $('wsTotTotal').textContent=fmt(t.total); $('wsTotConsNew').textContent=fmt(t.cNew);
   $('wsTotConsOld').textContent=fmt(t.cOld); $('wsTotBalance').textContent=fmt(t.bal);
-  $('wsTotRepair').textContent=fmt(t.repair);
 }
 
 function renderWsSummaryTable(){
@@ -1587,12 +1757,12 @@ function renderWsSummaryTable(){
   $('wsSumPeriodLabel').textContent = `${MONTHS[fromMonth-1]} ${fromYear} → ${MONTHS[toMonth-1]} ${toYear}`;
 
   const tbody = $('wsSumTableBody'); tbody.innerHTML = '';
-  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0, repair:0 };
+  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0 };
 
   itemMaster.forEach(it=>{
     const row = buildWsSummaryRow(it.name, fromMonth, fromYear, toMonth, toYear);
     t.open+=row.opening; t.recv+=row.received; t.div+=row.rec.issueOtherDivision; t.ws+=row.rec.issueOtherWorkshop;
-    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance; t.repair+=row.rec.repair;
+    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
@@ -1603,8 +1773,7 @@ function renderWsSummaryTable(){
       <td class="num" style="font-weight:700">${fmt(row.total)}</td>
       <td class="num">${fmt(row.rec.consumedNew)}</td>
       <td class="num">${fmt(row.rec.consumedOld)}</td>
-      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>
-      <td class="num">${fmt(row.rec.repair)}</td>`;
+      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -1612,7 +1781,6 @@ function renderWsSummaryTable(){
   $('wsSumTotIssueDiv').textContent=fmt(t.div); $('wsSumTotIssueWs').textContent=fmt(t.ws);
   $('wsSumTotTotal').textContent=fmt(t.total); $('wsSumTotConsNew').textContent=fmt(t.cNew);
   $('wsSumTotConsOld').textContent=fmt(t.cOld); $('wsSumTotBalance').textContent=fmt(t.bal);
-  $('wsSumTotRepair').textContent=fmt(t.repair);
 }
 function renderCombinedWsConsumption(){
   if (!$('cbWsConsTableBody')) return;
@@ -1622,26 +1790,28 @@ function renderCombinedWsConsumption(){
 
   const selectedFile = $('cbWorkerSelect') ? $('cbWorkerSelect').value : '__all__';
   const workersToUse = selectedFile === '__all__' ? compiledWorkers : compiledWorkers.filter(w => w.fileName === selectedFile);
-  const merged = { itemMaster: [], receives: [], wsConsumption: [] };
+  const merged = { itemMaster: [], receives: [], wsConsumption: [], wsRepair: [] };
   workersToUse.forEach(w=>{
     merged.itemMaster.push(...w.itemMaster);
     merged.receives.push(...w.receives);
     merged.wsConsumption.push(...(w.wsConsumption||[]));
+    merged.wsRepair.push(...(w.wsRepair||[]));
   });
 
   $('cbWsHeading').textContent = selectedFile === '__all__' ? 'All Workers Combined' : workerLabelFromFileName(selectedFile);
+  if ($('cbRepHeading')) $('cbRepHeading').textContent = (selectedFile === '__all__' ? 'All Workers — ' : workerLabelFromFileName(selectedFile) + ' — ') + MONTHS[month-1] + ' ' + year;
 
   // Unique item list across the selected worker(s)
   const items = [];
   merged.itemMaster.forEach(it=>{ if (!items.some(x=>x.name===it.name)) items.push(it); });
 
   const tbody = $('cbWsConsTableBody'); tbody.innerHTML = '';
-  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0, repair:0 };
+  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0 };
 
   items.forEach(it=>{
     const row = buildWsRow(it.name, month, year, merged);
     t.open+=row.opening; t.recv+=row.received; t.div+=row.rec.issueOtherDivision; t.ws+=row.rec.issueOtherWorkshop;
-    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance; t.repair+=row.rec.repair;
+    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
@@ -1652,8 +1822,7 @@ function renderCombinedWsConsumption(){
       <td class="num" style="font-weight:700">${fmt(row.total)}</td>
       <td class="num">${fmt(row.rec.consumedNew)}</td>
       <td class="num">${fmt(row.rec.consumedOld)}</td>
-      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>
-      <td class="num">${fmt(row.rec.repair)}</td>`;
+      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -1661,7 +1830,8 @@ function renderCombinedWsConsumption(){
   $('cbWsTotIssueDiv').textContent=fmt(t.div); $('cbWsTotIssueWs').textContent=fmt(t.ws);
   $('cbWsTotTotal').textContent=fmt(t.total); $('cbWsTotConsNew').textContent=fmt(t.cNew);
   $('cbWsTotConsOld').textContent=fmt(t.cOld); $('cbWsTotBalance').textContent=fmt(t.bal);
-  $('cbWsTotRepair').textContent=fmt(t.repair);
+
+  renderCombinedWsRepair(merged, month, year);
 }
 
 function renderCombinedWsSummary(){
@@ -1672,11 +1842,12 @@ function renderCombinedWsSummary(){
 
   const selectedFile = $('cbWorkerSelect') ? $('cbWorkerSelect').value : '__all__';
   const workersToUse = selectedFile === '__all__' ? compiledWorkers : compiledWorkers.filter(w => w.fileName === selectedFile);
-  const merged = { itemMaster: [], receives: [], wsConsumption: [] };
+  const merged = { itemMaster: [], receives: [], wsConsumption: [], wsRepair: [] };
   workersToUse.forEach(w=>{
     merged.itemMaster.push(...w.itemMaster);
     merged.receives.push(...w.receives);
     merged.wsConsumption.push(...(w.wsConsumption||[]));
+    merged.wsRepair.push(...(w.wsRepair||[]));
   });
 
   $('cbSumHeading').textContent = selectedFile === '__all__' ? 'All Workers Combined' : workerLabelFromFileName(selectedFile);
@@ -1685,12 +1856,12 @@ function renderCombinedWsSummary(){
   merged.itemMaster.forEach(it=>{ if (!items.some(x=>x.name===it.name)) items.push(it); });
 
   const tbody = $('cbSumTableBody'); tbody.innerHTML = '';
-  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0, repair:0 };
+  let t = { open:0, recv:0, div:0, ws:0, total:0, cNew:0, cOld:0, bal:0 };
 
   items.forEach(it=>{
     const row = buildWsSummaryRow(it.name, fromMonth, fromYear, toMonth, toYear, merged);
     t.open+=row.opening; t.recv+=row.received; t.div+=row.rec.issueOtherDivision; t.ws+=row.rec.issueOtherWorkshop;
-    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance; t.repair+=row.rec.repair;
+    t.total+=row.total; t.cNew+=row.rec.consumedNew; t.cOld+=row.rec.consumedOld; t.bal+=row.balance;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><span class="cat-pill">${it.category}</span></td><td>${it.name}</td><td class="center">${it.unit}</td>
@@ -1701,8 +1872,7 @@ function renderCombinedWsSummary(){
       <td class="num" style="font-weight:700">${fmt(row.total)}</td>
       <td class="num">${fmt(row.rec.consumedNew)}</td>
       <td class="num">${fmt(row.rec.consumedOld)}</td>
-      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>
-      <td class="num">${fmt(row.rec.repair)}</td>`;
+      <td class="num" style="font-weight:700${row.balance<0?';color:#b3452f':''}">${fmt(row.balance)}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -1710,7 +1880,8 @@ function renderCombinedWsSummary(){
   $('cbSumTotIssueDiv').textContent=fmt(t.div); $('cbSumTotIssueWs').textContent=fmt(t.ws);
   $('cbSumTotTotal').textContent=fmt(t.total); $('cbSumTotConsNew').textContent=fmt(t.cNew);
   $('cbSumTotConsOld').textContent=fmt(t.cOld); $('cbSumTotBalance').textContent=fmt(t.bal);
-  $('cbSumTotRepair').textContent=fmt(t.repair);
+
+  renderCombinedWsRepairSummary(merged, fromMonth, fromYear, toMonth, toYear);
 }
 
 function lastDayOfMonth(year, month){ return new Date(year, month, 0).getDate(); }
@@ -1760,7 +1931,7 @@ async function refreshCombined(){
       try{
         const d = await (await driveFetch(`${DRIVE_API}/files/${f.id}?alt=media`)).json();
         return { fileName: f.name, label: workerLabelFromFileName(f.name),
-          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[], wsConsumption: d.wsConsumption||[] };
+          itemMaster: d.itemMaster||[], receives: d.receives||[], issues: d.issues||[], wsConsumption: d.wsConsumption||[], wsRepair: d.wsRepair||[] };
       }catch(e){ console.warn('Could not read', f.name, e); return null; }
     }));
 
@@ -1831,7 +2002,7 @@ function renderMaster(){
   tbody.querySelectorAll('.masterInput').forEach(inp=>{
     inp.addEventListener('change', (e)=>{
       itemMaster[parseInt(e.target.dataset.idx,10)].opening = num(e.target.value);
-      queueSave(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+      queueSave(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
     });
   });
 }
@@ -1886,7 +2057,7 @@ function renderReceiveLog(){
     const entry = receives.find(r=>r.id===id);
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingReceiveId = null;
-    queueSave(); renderReceiveLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+    queueSave(); renderReceiveLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
     showToast('update', `${item} — ${fmt(qty)} qty`);
   }));
   $('recSelectAll').checked = false;
@@ -1936,7 +2107,7 @@ function renderIssueLog(){
     const entry = issues.find(r=>r.id===id);
     if (entry){ entry.date=date; entry.item=item; entry.qty=qty; entry.remarks=remarks; }
     editingIssueId = null;
-    queueSave(); renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); }
+    queueSave(); renderIssueLog(); if (!isAdmin) { renderDashboard(); renderWsConsumptionTable(); renderWsSummaryTable(); renderWsRepairTable(); renderWsRepairSummaryTable(); }
     showToast('update', `${item} — ${fmt(qty)} qty`);
   }));
   $('isSelectAll').checked = false;
